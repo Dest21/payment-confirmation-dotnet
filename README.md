@@ -1,5 +1,7 @@
 # Fudis · Confirmación de pagos
 
+![CI](https://github.com/Dest21/payment-confirmation-dotnet/actions/workflows/ci.yml/badge.svg)
+
 Revisión del endpoint `confirm-payment` y propuesta lista para producción.
 
 - **Código original:** `codigo-original/ConfirmPayment.original.cs`, solo como referencia.
