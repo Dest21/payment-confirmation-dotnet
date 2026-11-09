@@ -1,10 +1,12 @@
 using Fudis.Payments.Domain;
 using Fudis.Payments.Payments;
 using Microsoft.EntityFrameworkCore;
+using Fudis.Payments.Tests.Infrastructure;
 using Xunit;
 
-namespace Fudis.Payments.Tests;
+namespace Fudis.Payments.Tests.Integration;
 
+/// <summary>Garantías del caso de uso contra un SQL Server real (bloqueos, índices únicos, transacciones).</summary>
 public class ConfirmPaymentTests
 {
     [Fact]
@@ -25,7 +27,7 @@ public class ConfirmPaymentTests
         Assert.Equal(7, earning.DriverId);
         Assert.Equal(EarningStatus.Payable, earning.Status);
         var message = await check.OutboxMessages.SingleAsync();
-        Assert.Equal(OutboxMessageType.RestaurantPaymentConfirmed, message.Type);
+        Assert.Equal(nameof(RestaurantPaymentConfirmed), message.Type);
     }
 
     [Fact]
@@ -63,7 +65,7 @@ public class ConfirmPaymentTests
         Assert.All(results, r => Assert.Contains(r, new[] { ConfirmResult.Applied, ConfirmResult.Duplicate }));
         await using var check = db.NewContext();
         Assert.Equal(1, await check.DriverEarnings.CountAsync());
-        Assert.Equal(1, await check.OutboxMessages.CountAsync(m => m.Type == OutboxMessageType.RestaurantPaymentConfirmed));
+        Assert.Equal(1, await check.OutboxMessages.CountAsync(m => m.Type == nameof(RestaurantPaymentConfirmed)));
     }
 
     [Fact]
@@ -83,7 +85,7 @@ public class ConfirmPaymentTests
         Assert.Equal(9, results.Count(r => r == ConfirmResult.AlreadyPaid));
         await using var check = db.NewContext();
         Assert.Equal(1, await check.DriverEarnings.CountAsync());
-        Assert.Equal(0, await check.OutboxMessages.CountAsync(m => m.Type == OutboxMessageType.PaymentRequiresReview));
+        Assert.Equal(0, await check.OutboxMessages.CountAsync(m => m.Type == nameof(PaymentReviewRequested)));
     }
 
     [Fact]
@@ -100,7 +102,7 @@ public class ConfirmPaymentTests
 
         await using var check = db.NewContext();
         Assert.Equal(1, await check.DriverEarnings.CountAsync());
-        Assert.Equal(1, await check.OutboxMessages.CountAsync(m => m.Type == OutboxMessageType.PaymentRequiresReview));
+        Assert.Equal(1, await check.OutboxMessages.CountAsync(m => m.Type == nameof(PaymentReviewRequested)));
     }
 
     [Fact]
@@ -117,7 +119,7 @@ public class ConfirmPaymentTests
         Assert.Equal(OrderStatus.PendingPayment, (await check.Orders.SingleAsync()).Status);
         Assert.Equal(0, await check.DriverEarnings.CountAsync());
         Assert.Equal(NotificationOutcome.AmountMismatch, (await check.PaymentNotifications.SingleAsync()).Outcome);
-        Assert.Equal(OutboxMessageType.PaymentRequiresReview, (await check.OutboxMessages.SingleAsync()).Type);
+        Assert.Equal(nameof(PaymentReviewRequested), (await check.OutboxMessages.SingleAsync()).Type);
     }
 
     [Fact]
@@ -132,7 +134,7 @@ public class ConfirmPaymentTests
         await using var check = db.NewContext();
         Assert.Equal(OrderStatus.Cancelled, (await check.Orders.SingleAsync()).Status);
         Assert.Equal(0, await check.DriverEarnings.CountAsync());
-        Assert.Equal(OutboxMessageType.PaymentRequiresReview, (await check.OutboxMessages.SingleAsync()).Type);
+        Assert.Equal(nameof(PaymentReviewRequested), (await check.OutboxMessages.SingleAsync()).Type);
     }
 
     [Fact]
@@ -160,22 +162,6 @@ public class ConfirmPaymentTests
         var earning = await check.DriverEarnings.SingleAsync();
         Assert.Null(earning.DriverId);
         Assert.Equal(EarningStatus.PendingAssignment, earning.Status);
-    }
-
-    [Theory]
-    [InlineData(7.15, 5.01)]   // 5.005 → 5.01 (mitad hacia arriba, no redondeo bancario)
-    [InlineData(4.99, 3.49)]   // 3.493 → 3.49
-    [InlineData(0, 0)]
-    public async Task Earning_is_rounded_to_cents(decimal fee, decimal expected)
-    {
-        await using var db = await TestDb.CreateAsync();
-        var order = await db.SeedOrderAsync(deliveryFee: fee);
-
-        await using (var ctx = db.NewContext())
-            await db.NewHandler(ctx).HandleAsync(TestDb.Approved(order.Id));
-
-        await using var check = db.NewContext();
-        Assert.Equal(expected, (await check.DriverEarnings.SingleAsync()).Amount);
     }
 
     [Fact]

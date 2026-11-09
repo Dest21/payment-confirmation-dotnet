@@ -238,7 +238,7 @@ const SCENARIOS = [
     order: {}, steps: [{ paymentId: 'pay_1' }, { paymentId: 'pay_2' }],
     expect: { status: 'PAID', earnings: 1, notified: 1, alerts: 1 },
     why: `<p>El cliente pagó dos veces, por ejemplo con dos clics o dos tarjetas. El original responde 200 y <b>nadie se entera</b>, así que el cliente pierde su dinero.</p>
-          <p>La solución no paga dos veces al repartidor, pero deja en el outbox una alerta <code>PaymentRequiresReview</code> para que operaciones haga el reembolso.</p>`,
+          <p>La solución no paga dos veces al repartidor, pero deja en el outbox una alerta <code>PaymentReviewRequested</code> para que operaciones haga el reembolso.</p>`,
     say: 'No basta con no duplicar: hay que detectar el problema del cliente y avisar a alguien.',
   },
   {
@@ -361,7 +361,7 @@ function evaluate(s, mode, run, st) {
     ? st.legacyEarnings.filter((e) => e.orderId === run.orderId)
     : st.earnings.filter((e) => e.orderId === run.orderId);
   const notified = st.restaurantReceived.filter((n) => n.orderId === run.orderId && n.source === (mode === 'original' ? 'original' : 'solución')).length;
-  const alerts = mode === 'original' ? 0 : st.outbox.filter((m) => m.type === 'PaymentRequiresReview' && JSON.parse(m.payload).OrderId === run.orderId).length;
+  const alerts = mode === 'original' ? 0 : st.outbox.filter((m) => m.type === 'PaymentReviewRequested' && JSON.parse(m.payload).orderId === run.orderId).length;
   const pendingRestaurant = mode === 'solution' && st.outbox.some((m) => m.type === 'RestaurantPaymentConfirmed' && JSON.parse(m.payload).orderId === run.orderId && !m.processedAt);
   const total = earnings.reduce((a, e) => a + Number(e.amount), 0);
 
@@ -465,7 +465,7 @@ function renderTables(st) {
     st.outbox.slice(0, 20).map((m) => {
       const p = JSON.parse(m.payload);
       const state = m.processedAt ? badge('enviado', 'ok') : m.failedAt ? badge('fallido', 'bad') : badge(m.attempts ? `reintento ${ago(m.nextAttemptAt, st.now)}` : 'pendiente', 'warn');
-      return [`m${m.id}${m.processedAt ? 'p' : m.attempts}`, [m.type === 'RestaurantPaymentConfirmed' ? 'Aviso a restaurante' : badge('Revisión de pago', 'bad'), `#${p.orderId ?? p.OrderId}`, m.attempts, state + (m.lastError && !m.processedAt ? ` <span class="tip" data-tip="${esc(m.lastError)}">!</span>` : '')]];
+      return [`m${m.id}${m.processedAt ? 'p' : m.attempts}`, [m.type === 'RestaurantPaymentConfirmed' ? 'Aviso a restaurante' : badge('Revisión de pago', 'bad'), `#${p.orderId}`, m.attempts, state + (m.lastError && !m.processedAt ? ` <span class="tip" data-tip="${esc(m.lastError)}">!</span>` : '')]];
     }), 'Vacío.');
   table($('#tRest'), ['Pedido', 'Desde', 'Hora'],
     st.restaurantReceived.slice(0, 30).map((n) => [`r${n.orderId}${n.at}`, [`#${n.orderId}`, badge(n.source, n.source === 'original' ? 'warn' : 'info'), new Date(n.at).toLocaleTimeString()]]), 'Ningún aviso todavía.');

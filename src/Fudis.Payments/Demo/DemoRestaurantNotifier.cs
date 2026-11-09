@@ -11,7 +11,14 @@ public sealed class DemoRestaurantNotifier : IRestaurantNotifier
 {
     private readonly ConcurrentQueue<ReceivedNotice> _received = new();
 
-    public volatile bool Down;
+    private volatile bool _down;
+
+    /// <summary>Si está caído, cada aviso falla y el outbox lo reintenta.</summary>
+    public bool Down
+    {
+        get => _down;
+        set => _down = value;
+    }
 
     public sealed record ReceivedNotice(int OrderId, Guid? MessageId, string Source, DateTime At);
 
@@ -28,4 +35,16 @@ public sealed class DemoRestaurantNotifier : IRestaurantNotifier
     public IReadOnlyList<ReceivedNotice> Received => _received.Reverse().Take(300).ToList();
 
     public void Clear() => _received.Clear();
+}
+
+public static class DemoServiceCollectionExtensions
+{
+    /// <summary>Solo Development: restaurante que se puede "caer" y cliente HTTP para el simulador.</summary>
+    public static IServiceCollection AddPaymentsDemo(this IServiceCollection services)
+    {
+        services.AddSingleton<DemoRestaurantNotifier>();
+        services.AddSingleton<IRestaurantNotifier>(sp => sp.GetRequiredService<DemoRestaurantNotifier>());
+        services.AddHttpClient();
+        return services;
+    }
 }

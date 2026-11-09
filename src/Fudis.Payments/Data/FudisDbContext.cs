@@ -1,5 +1,4 @@
 using Fudis.Payments.Domain;
-using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
 namespace Fudis.Payments.Data;
@@ -11,9 +10,9 @@ public class FudisDbContext(DbContextOptions<FudisDbContext> options) : DbContex
     public DbSet<PaymentNotificationRecord> PaymentNotifications => Set<PaymentNotificationRecord>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
-    protected override void OnModelCreating(ModelBuilder b)
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        b.Entity<Order>(e =>
+        modelBuilder.Entity<Order>(e =>
         {
             e.Property(o => o.Status).HasMaxLength(30).IsUnicode(false);
             e.Property(o => o.DeliveryFee).HasPrecision(10, 2);
@@ -28,7 +27,7 @@ public class FudisDbContext(DbContextOptions<FudisDbContext> options) : DbContex
             });
         });
 
-        b.Entity<DriverEarning>(e =>
+        modelBuilder.Entity<DriverEarning>(e =>
         {
             e.Property(x => x.Amount).HasPrecision(10, 2);
             e.Property(x => x.Rate).HasPrecision(5, 4);
@@ -39,7 +38,7 @@ public class FudisDbContext(DbContextOptions<FudisDbContext> options) : DbContex
             e.HasOne<Order>().WithMany().HasForeignKey(x => x.OrderId).OnDelete(DeleteBehavior.Restrict);
         });
 
-        b.Entity<PaymentNotificationRecord>(e =>
+        modelBuilder.Entity<PaymentNotificationRecord>(e =>
         {
             e.ToTable("PaymentNotifications");
             e.Property(x => x.ProviderEventId).HasMaxLength(100).IsUnicode(false);
@@ -51,7 +50,7 @@ public class FudisDbContext(DbContextOptions<FudisDbContext> options) : DbContex
             e.HasIndex(x => x.OrderId);
         });
 
-        b.Entity<OutboxMessage>(e =>
+        modelBuilder.Entity<OutboxMessage>(e =>
         {
             e.Property(x => x.Type).HasMaxLength(100).IsUnicode(false);
             e.Property(x => x.LastError).HasMaxLength(1000);
@@ -59,11 +58,4 @@ public class FudisDbContext(DbContextOptions<FudisDbContext> options) : DbContex
             e.HasIndex(x => x.NextAttemptAt).HasFilter("[ProcessedAt] IS NULL AND [FailedAt] IS NULL");
         });
     }
-}
-
-public static class SqlErrors
-{
-    /// <summary>2601 = clave duplicada en índice único; 2627 = violación de UNIQUE/PK.</summary>
-    public static bool IsUniqueViolation(DbUpdateException ex) =>
-        ex.InnerException is SqlException { Number: 2601 or 2627 };
 }

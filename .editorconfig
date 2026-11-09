@@ -1,0 +1,27 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+[*.{json,yml,yaml,html,css,js}]
+indent_size = 2
+
+[*.cs]
+csharp_style_namespace_declarations = file_scoped:warning
+csharp_style_var_for_built_in_types = true:suggestion
+csharp_prefer_braces = when_multiline:suggestion
+dotnet_sort_system_directives_first = true
+dotnet_style_readonly_field = true:warning
+dotnet_diagnostic.IDE0005.severity = warning   # usings sin usar
+
+# Mensajes y textos de dominio están en español a propósito (equipo y negocio en Perú).
+dotnet_diagnostic.CA1303.severity = none
+# Los tests usan nombres con guiones bajos como frases.
+[tests/**.cs]
+dotnet_diagnostic.CA1707.severity = none
+dotnet_diagnostic.CA2007.severity = none

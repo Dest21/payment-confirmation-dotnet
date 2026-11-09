@@ -1,44 +1,39 @@
-using System.Text.Json;
 using Fudis.Payments.Data;
 using Fudis.Payments.Domain;
 using Microsoft.EntityFrameworkCore;
 
 namespace Fudis.Payments.Outbox;
 
-public interface IRestaurantNotifier
-{
-    /// <summary>
-    /// Avisa al restaurante. La entrega es "al menos una vez": el mismo messageId puede
-    /// llegar dos veces si el proceso cae justo después de enviar, así que el receptor
-    /// debe descartar duplicados por messageId.
-    /// </summary>
-    Task NotifyPaymentConfirmedAsync(int orderId, Guid messageId, CancellationToken ct);
-}
-
-public interface IPaymentReviewAlerter
-{
-    Task AlertAsync(string payload, Guid messageId, CancellationToken ct);
-}
-
 /// <summary>
 /// Envía los mensajes pendientes del outbox. Varias instancias pueden correr a la vez:
 /// UPDLOCK + READPAST hace que cada una tome filas distintas.
 /// </summary>
-public sealed class OutboxProcessor(
-    FudisDbContext db,
-    IRestaurantNotifier restaurants,
-    IPaymentReviewAlerter alerts,
-    TimeProvider clock,
-    ILogger<OutboxProcessor> log)
+public sealed partial class OutboxProcessor
 {
     public const int MaxAttempts = 8;
+    private const int MaxBackoffSeconds = 600;
 
+    private readonly FudisDbContext _db;
+    private readonly Dictionary<string, IOutboxHandler> _handlers;
+    private readonly TimeProvider _clock;
+    private readonly ILogger<OutboxProcessor> _log;
+
+    public OutboxProcessor(FudisDbContext db, IEnumerable<IOutboxHandler> handlers, TimeProvider clock, ILogger<OutboxProcessor> log)
+    {
+        _db = db;
+        ArgumentNullException.ThrowIfNull(handlers);
+        _handlers = handlers.ToDictionary(h => h.MessageType);
+        _clock = clock;
+        _log = log;
+    }
+
+    /// <summary>Procesa un lote. Devuelve cuántos mensajes tomó (enviados o reprogramados).</summary>
     public async Task<int> ProcessBatchAsync(int batchSize = 20, CancellationToken ct = default)
     {
-        var now = clock.GetUtcNow().UtcDateTime;
-        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        var now = _clock.GetUtcNow().UtcDateTime;
+        await using var tx = await _db.Database.BeginTransactionAsync(ct);
 
-        var batch = await db.OutboxMessages
+        var batch = await _db.OutboxMessages
             .FromSql($"""
                 SELECT TOP ({batchSize}) * FROM OutboxMessages WITH (UPDLOCK, READPAST, ROWLOCK)
                 WHERE ProcessedAt IS NULL AND FailedAt IS NULL AND NextAttemptAt <= {now}
@@ -46,83 +41,45 @@ public sealed class OutboxProcessor(
                 """)
             .ToListAsync(ct);
 
-        foreach (var m in batch)
-        {
-            try
-            {
-                switch (m.Type)
-                {
-                    case OutboxMessageType.RestaurantPaymentConfirmed:
-                        var orderId = JsonDocument.Parse(m.Payload).RootElement.GetProperty("orderId").GetInt32();
-                        await restaurants.NotifyPaymentConfirmedAsync(orderId, m.MessageId, ct);
-                        break;
-                    case OutboxMessageType.PaymentRequiresReview:
-                        await alerts.AlertAsync(m.Payload, m.MessageId, ct);
-                        break;
-                    default:
-                        throw new InvalidOperationException($"Tipo de mensaje desconocido: {m.Type}");
-                }
-                m.ProcessedAt = now;
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                m.Attempts++;
-                m.LastError = ex.Message.Length > 1000 ? ex.Message[..1000] : ex.Message;
-                if (m.Attempts >= MaxAttempts)
-                {
-                    m.FailedAt = now;
-                    log.LogError(ex, "Mensaje {MessageId} ({Type}) agotó sus reintentos", m.MessageId, m.Type);
-                }
-                else
-                {
-                    // Espera exponencial: 2, 4, 8… segundos, hasta 10 minutos.
-                    m.NextAttemptAt = now.AddSeconds(Math.Min(600, Math.Pow(2, m.Attempts)));
-                }
-            }
-        }
+        foreach (var message in batch)
+            await DispatchAsync(message, now, ct);
 
-        await db.SaveChangesAsync(ct);
+        await _db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
         return batch.Count;
     }
-}
 
-public sealed class OutboxWorker(IServiceScopeFactory scopes, ILogger<OutboxWorker> log) : BackgroundService
-{
-    protected override async Task ExecuteAsync(CancellationToken ct)
+    private async Task DispatchAsync(OutboxMessage message, DateTime now, CancellationToken ct)
     {
-        while (!ct.IsCancellationRequested)
+        try
         {
-            try
+            if (!_handlers.TryGetValue(message.Type, out var handler))
+                throw new InvalidOperationException($"No hay handler para el tipo {message.Type}.");
+
+            await handler.HandleAsync(message, ct);
+            message.ProcessedAt = now;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            message.Attempts++;
+            message.LastError = ex.Message.Length > 1000 ? ex.Message[..1000] : ex.Message;
+            if (message.Attempts >= MaxAttempts)
             {
-                using var scope = scopes.CreateScope();
-                var processed = await scope.ServiceProvider.GetRequiredService<OutboxProcessor>().ProcessBatchAsync(20, ct);
-                if (processed > 0) continue;
+                message.FailedAt = now;
+                LogGaveUp(_log, ex, message.MessageId, message.Type, message.Attempts);
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            else
             {
-                log.LogError(ex, "Error procesando el outbox");
+                // Espera exponencial: 2, 4, 8… segundos, hasta 10 minutos.
+                message.NextAttemptAt = now.AddSeconds(Math.Min(MaxBackoffSeconds, Math.Pow(2, message.Attempts)));
+                LogWillRetry(_log, message.MessageId, message.Type, message.Attempts, ex.Message);
             }
-            await Task.Delay(TimeSpan.FromSeconds(2), ct);
         }
     }
-}
 
-/// <summary>Implementaciones de ejemplo: en producción serían push, WhatsApp, cola, etc.</summary>
-public sealed class LoggingRestaurantNotifier(ILogger<LoggingRestaurantNotifier> log) : IRestaurantNotifier
-{
-    public Task NotifyPaymentConfirmedAsync(int orderId, Guid messageId, CancellationToken ct)
-    {
-        log.LogInformation("Restaurante avisado del pago del pedido {OrderId} ({MessageId})", orderId, messageId);
-        return Task.CompletedTask;
-    }
-}
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Mensaje {MessageId} ({Type}) falló en el intento {Attempt}: {Error}")]
+    private static partial void LogWillRetry(ILogger logger, Guid messageId, string type, int attempt, string error);
 
-public sealed class LoggingReviewAlerter(ILogger<LoggingReviewAlerter> log) : IPaymentReviewAlerter
-{
-    public Task AlertAsync(string payload, Guid messageId, CancellationToken ct)
-    {
-        log.LogWarning("Pago para revisión manual ({MessageId}): {Payload}", messageId, payload);
-        return Task.CompletedTask;
-    }
+    [LoggerMessage(Level = LogLevel.Error, Message = "Mensaje {MessageId} ({Type}) agotó sus {Attempts} intentos")]
+    private static partial void LogGaveUp(ILogger logger, Exception ex, Guid messageId, string type, int attempts);
 }

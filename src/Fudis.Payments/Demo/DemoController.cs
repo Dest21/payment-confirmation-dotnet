@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using Fudis.Payments.Data;
@@ -12,15 +13,17 @@ using Microsoft.Extensions.Options;
 namespace Fudis.Payments.Demo;
 
 /// <summary>Solo responde en Development: la demo nunca se expone en producción.</summary>
+[AttributeUsage(AttributeTargets.Class | AttributeTargets.Method)]
 public sealed class DemoOnlyAttribute : Attribute, IResourceFilter
 {
-    public void OnResourceExecuting(ResourceExecutingContext ctx)
+    public void OnResourceExecuting(ResourceExecutingContext context)
     {
-        if (!ctx.HttpContext.RequestServices.GetRequiredService<IWebHostEnvironment>().IsDevelopment())
-            ctx.Result = new NotFoundResult();
+        ArgumentNullException.ThrowIfNull(context);
+        if (!context.HttpContext.RequestServices.GetRequiredService<IWebHostEnvironment>().IsDevelopment())
+            context.Result = new NotFoundResult();
     }
 
-    public void OnResourceExecuted(ResourceExecutedContext ctx) { }
+    public void OnResourceExecuted(ResourceExecutedContext context) { }
 }
 
 /// <summary>
@@ -85,10 +88,10 @@ public sealed class DemoController(
             {
                 Content = new StringContent(body, Encoding.UTF8, "application/json"),
             };
-            var ts = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
-            req.Headers.Add("X-Fudis-Timestamp", ts);
-            req.Headers.Add("X-Demo-Latency", Math.Clamp(r.LatencyMs, 0, 200).ToString());
-            req.Headers.Add("X-Fudis-Signature", r.ValidSignature
+            var ts = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(CultureInfo.InvariantCulture);
+            req.Headers.Add(PaymentsController.TimestampHeader, ts);
+            req.Headers.Add("X-Demo-Latency", Math.Clamp(r.LatencyMs, 0, 200).ToString(CultureInfo.InvariantCulture));
+            req.Headers.Add(PaymentsController.SignatureHeader, r.ValidSignature
                 ? Convert.ToHexString(SignatureVerifier.Sign(options.Value.WebhookSecret, ts, body))
                 : new string('0', 64));
 

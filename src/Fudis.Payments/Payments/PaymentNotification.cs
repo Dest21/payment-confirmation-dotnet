@@ -27,15 +27,3 @@ public sealed record PaymentNotification(
         return errors;
     }
 }
-
-public sealed class PaymentOptions
-{
-    /// <summary>Secreto compartido con la pasarela para firmar las notificaciones (HMAC-SHA256).</summary>
-    public string WebhookSecret { get; set; } = "";
-
-    /// <summary>Antigüedad máxima aceptada de una notificación firmada, contra ataques de repetición.</summary>
-    public int SignatureToleranceSeconds { get; set; } = 300;
-
-    /// <summary>Parte de la tarifa de envío que gana el repartidor.</summary>
-    public decimal DriverShare { get; set; } = 0.70m;
-}

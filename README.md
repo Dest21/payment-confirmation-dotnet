@@ -17,6 +17,8 @@ Solo hace falta Docker, no hace falta instalar .NET:
 
 El script levanta SQL Server 2022 en un contenedor y corre las pruebas con el SDK de .NET 10. Las pruebas usan un SQL Server real, con una base nueva por prueba, porque las garantías dependen de sus bloqueos e índices únicos. Una base en memoria no las comprobaría.
 
+Sin Docker, con el SDK de .NET 10 y un SQL Server propio: `FUDIS_TEST_SQL="Server=...;User Id=...;Password=...;TrustServerCertificate=True" dotnet test`.
+
 **Versiones:**
 - .NET SDK 10.0.403 y ASP.NET Core 10.
 - EF Core 10.0.14 (SqlServer).
@@ -38,6 +40,30 @@ Es una página con 10 escenarios. Cada uno se ejecuta con un clic **con el códi
 - **"Ejecutar los 10 escenarios"** corre todo y muestra un marcador. En una ejecución real: original 2/10 correctos, solución 10/10.
 
 **Ejemplo real de una ejecución:** con 20 avisos simultáneos, el original registró 20 ganancias (S/ 140 en lugar de S/ 7) y 20 avisos al restaurante. La solución registró 1 y 1.
+
+## Arquitectura y decisiones
+
+```
+src/Fudis.Payments/
+├── Domain/      Entidades y reglas de negocio puras (sin base de datos):
+│                DriverEarningPolicy (70 %, redondeo, sin repartidor), PaymentRules (por qué no se aplicó un pago)
+├── Payments/    Caso de uso ConfirmPaymentHandler, contrato de entrada, firma HMAC, opciones validadas y el controlador
+├── Data/        DbContext de EF Core: índices únicos, restricciones CHECK y precisión de montos
+├── Outbox/      Procesador, worker en segundo plano y un IOutboxHandler por tipo de mensaje
+└── Demo/        Solo en Development: simulador de la pasarela y el código original para comparar
+tests/Fudis.Payments.Tests/
+├── Unit/        Dominio, firma, contrato y opciones: milisegundos, sin base de datos
+└── Integration/ Caso de uso, outbox y endpoint contra SQL Server real
+```
+
+**Decisiones:**
+- **Organizado por funcionalidad y por capas, no como arquitectura hexagonal completa.** Las garantías de esta solución viven en SQL Server: el índice único, el `UPDATE` condicional y la transacción. Esconderlas detrás de un repositorio genérico las haría invisibles y fáciles de romper sin querer. El caso de uso trabaja con el `DbContext` a propósito.
+- **Se abstrae lo que de verdad cambia:** los canales externos (`IRestaurantNotifier`, `IPaymentReviewAlerter`) y los tipos de mensaje del outbox (`IOutboxHandler`). Para agregar un efecto nuevo basta con un record y su handler; el procesador no cambia.
+- **Las reglas de negocio son funciones puras** en `Domain/`. Se prueban sin base de datos y el caso de uso solo orquesta.
+- **La configuración se valida al arrancar** (`PaymentOptionsValidator`). Sin secreto de firma o con un porcentaje fuera de rango, la aplicación no inicia, en vez de fallar con el primer pago real.
+- **Estándar de código para toda la solución** (`Directory.Build.props`, `.editorconfig`): nullable, analizadores de .NET (`latest-recommended`), estilo verificado en el build y warnings tratados como errores. Los logs usan `LoggerMessage`, que se genera en compilación.
+- **Idioma:** código en inglés; comentarios, mensajes, README y la interfaz de la demo en español, para el equipo.
+- **CI:** `.github/workflows/ci.yml` compila y corre todas las pruebas contra SQL Server en cada push.
 
 ## Hallazgos en el código original, por impacto
 
@@ -129,7 +155,7 @@ Todo ocurre en **una transacción** (`ConfirmPaymentHandler`):
 
 ## Pruebas
 
-**Ejecutadas: 22, todas pasan** (`./scripts/test.sh`; resultados en `test-results/resultados.trx`). Las dos pruebas de concurrencia se repitieron 5 veces seguidas sin fallos.
+**Ejecutadas: 39, todas pasan** (`./scripts/test.sh`; resultados en `test-results/resultados.trx`): 22 unitarias y 17 de integración contra SQL Server real. Las dos pruebas de concurrencia se repitieron 5 veces seguidas sin fallos.
 
 | Prueba | Qué comprueba |
 |---|---|
@@ -142,11 +168,13 @@ Todo ocurre en **una transacción** (`ConfirmPaymentHandler`):
 | Pedido cancelado | No se paga, sin ganancia y con alerta. |
 | Pedido inexistente | No se guarda nada, para que la pasarela reintente. |
 | Pedido sin repartidor | La ganancia queda `PENDING_ASSIGNMENT`. |
-| Redondeo | 7.15 → 5.01, 4.99 → 3.49, 0 → 0. |
+| Redondeo (unitaria) | 10 → 7.00, 7.15 → 5.01, 4.99 → 3.49, 0 → 0. Porcentaje fuera de rango rechazado. |
+| Reglas de un pago no aplicado (unitarias) | Reintento del mismo cobro sin alerta, otro cobro como doble cargo, importe distinto y pedido cancelado. |
 | Índice único en la base | Rechaza una segunda ganancia aunque la aplicación falle. |
-| Outbox | Si el aviso falla, el pago se mantiene y el aviso se reintenta después de la espera. Tras 8 fallos queda como fallido. |
-| Firma | Válida, cuerpo alterado, otro secreto, sin firma, firma vencida y firma no hexadecimal. |
-| Punta a punta por HTTP | Firma inválida → 401. La misma notificación dos veces → 200 `Applied` y luego 200 `Duplicate`, con una sola ganancia. |
+| Outbox | Si el aviso falla, el pago se mantiene y el aviso se reintenta después de la espera. Tras 8 fallos queda como fallido. Un tipo de mensaje desconocido se reintenta en vez de perderse. |
+| Firma (unitarias) | Válida (mayúsculas y minúsculas), cuerpo alterado, otro secreto, sin firma, firma vencida y firma no hexadecimal. |
+| Contrato y configuración (unitarias) | Campos obligatorios, importes con más de 2 decimales y opciones inválidas. |
+| Punta a punta por HTTP | Firma inválida → 401. La misma notificación dos veces → 200 `Applied` y luego 200 `Duplicate`, con una sola ganancia. Contrato inválido → 400 sin tocar la base. La app no arranca sin secreto. |
 
 **Propuestas, no implementadas:**
 - Prueba de carga del outbox con varias instancias en paralelo.
@@ -156,7 +184,7 @@ Todo ocurre en **una transacción** (`ConfirmPaymentHandler`):
 ## Limitaciones y trabajo pendiente
 
 - **El flujo de asignación de repartidor** debe completar las ganancias `PENDING_ASSIGNMENT`. No está incluido.
-- **Los avisos de revisión** (`PaymentRequiresReview`) hoy solo se registran en el log. Falta conectarlos a un canal real, como Slack, correo o un panel de operaciones.
+- **Los avisos de revisión** (`PaymentReviewRequested`) hoy solo se registran en el log. Falta conectarlos a un canal real, como Slack, correo o un panel de operaciones.
 - **El procesador del outbox mantiene la transacción abierta mientras envía el lote.** Con lotes pequeños es aceptable. Con volumen alto convendría tomar los mensajes con una "reserva" con vencimiento y enviar fuera de la transacción.
 - **Los mensajes fallidos** necesitan un panel o un job para revisarlos y reintentarlos a mano.
 - **Rotación del secreto de la firma:** aceptar dos secretos durante el cambio.
@@ -170,8 +198,9 @@ Usé Claude (Anthropic) como asistente para:
 
 Lo que verifiqué yo:
 - la lógica de concurrencia (UPDATE condicional, índices únicos y la elección de comparar contra `PaidPaymentId` en lugar de leer otras notificaciones, para evitar bloqueos mutuos entre transacciones);
-- los resultados de las 22 pruebas contra SQL Server real.
+- los resultados de las 39 pruebas contra SQL Server real.
 
 Corregí:
 - un posible deadlock en la detección de doble cargo;
-- dependencias con avisos de seguridad (`System.Security.Cryptography.Pkcs`).
+- dependencias con avisos de seguridad (`System.Security.Cryptography.Pkcs`);
+- los hallazgos de los analizadores de código.

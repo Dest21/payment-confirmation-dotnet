@@ -4,7 +4,7 @@ using Fudis.Payments.Payments;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
-namespace Fudis.Payments.Tests;
+namespace Fudis.Payments.Tests.Infrastructure;
 
 /// <summary>
 /// Una base SQL Server real y nueva por prueba. Las garantías dependen de los bloqueos
