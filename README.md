@@ -25,7 +25,11 @@ Sin Docker, con el SDK de .NET 10 y un SQL Server propio: `FUDIS_TEST_SQL="Serve
 - SQL Server 2022.
 - xUnit 2.9.3.
 
-## Demo visual (opcional, solo en desarrollo)
+## Demo visual
+
+**En línea:** https://prueba-fudis.variumcode.com
+
+En local:
 
 ```bash
 ./scripts/demo.sh      # abre http://localhost:5080
@@ -35,7 +39,8 @@ Es una página con 10 escenarios. Cada uno se ejecuta con un clic **con el códi
 
 - **El simulador de la pasarela** llama al endpoint real, con firma, desde el servidor.
 - **El código original** corre tal cual en `/demo/original/confirm-payment`. Solo cambia una cosa: escribe sus ganancias en una tabla aparte sin índice único, para que se vean los duplicados.
-- **Fuera de Development**, todo `/demo` responde 404 y la página no se sirve.
+- **La demo solo existe si `Demo:Enabled = true`.** Si no, todo `/demo` responde 404 y la página no se sirve. Las acciones que escriben tienen un límite de 120 por minuto por IP.
+- **Despliegue:** `Dockerfile` y `deploy/docker-compose.yml` (API más SQL Server, detrás de un proxy Caddy; ver `deploy/Caddyfile.snippet`).
 - **El interruptor "Latencia realista (30 ms)"** agrega una espera solo al código original, entre leer el pedido y guardarlo, como la latencia de una base remota. La carrera existe sin él, pero depende de la suerte: en pruebas locales sin latencia salieron 0, 3 y 20 ganancias duplicadas en ejecuciones distintas. Con latencia se reproduce siempre. La solución no depende del tiempo.
 - **"Ejecutar los 10 escenarios"** corre todo y muestra un marcador. En una ejecución real: original 2/10 correctos, solución 10/10.
 

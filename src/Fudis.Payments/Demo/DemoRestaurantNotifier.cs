@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Threading.RateLimiting;
 using Fudis.Payments.Outbox;
 
 namespace Fudis.Payments.Demo;
@@ -39,12 +40,26 @@ public sealed class DemoRestaurantNotifier : IRestaurantNotifier
 
 public static class DemoServiceCollectionExtensions
 {
-    /// <summary>Solo Development: restaurante que se puede "caer" y cliente HTTP para el simulador.</summary>
+    public const string RateLimitPolicy = "demo";
+
+    /// <summary>
+    /// Solo con Demo:Enabled: restaurante que se puede "caer", cliente HTTP para el simulador y un
+    /// límite por IP para las acciones que escriben (la demo puede estar publicada).
+    /// </summary>
     public static IServiceCollection AddPaymentsDemo(this IServiceCollection services)
     {
         services.AddSingleton<DemoRestaurantNotifier>();
         services.AddSingleton<IRestaurantNotifier>(sp => sp.GetRequiredService<DemoRestaurantNotifier>());
         services.AddHttpClient();
+        services.AddRateLimiter(o =>
+        {
+            o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+            o.AddPolicy(RateLimitPolicy, http => RateLimitPartition.GetFixedWindowLimiter(
+                // Detrás de Cloudflare la IP real viene en CF-Connecting-IP.
+                http.Request.Headers["CF-Connecting-IP"].FirstOrDefault()
+                    ?? http.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                _ => new FixedWindowRateLimiterOptions { PermitLimit = 120, Window = TimeSpan.FromMinutes(1) }));
+        });
         return services;
     }
 }

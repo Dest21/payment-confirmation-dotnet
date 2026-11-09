@@ -20,6 +20,6 @@ docker run --rm --name fudis-demo --network "$NET" -p 127.0.0.1:5080:8080 \
   -v "$PWD":/src -w /src -v fudis-nuget:/root/.nuget/packages \
   -e ASPNETCORE_ENVIRONMENT=Development \
   -e ConnectionStrings__Fudis="Server=$SQL,1433;Database=FudisDemo;User Id=sa;Password=$PASS;TrustServerCertificate=True" \
-  -e Demo__SelfUrl=http://localhost:8080 \
+  -e Demo__Enabled=true -e Demo__SelfUrl=http://localhost:8080 \
   mcr.microsoft.com/dotnet/sdk:10.0 \
   dotnet run --project src/Fudis.Payments --urls http://0.0.0.0:8080

@@ -7,19 +7,20 @@ using Fudis.Payments.Domain;
 using Fudis.Payments.Payments;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
 namespace Fudis.Payments.Demo;
 
-/// <summary>Solo responde en Development: la demo nunca se expone en producción.</summary>
+/// <summary>Solo responde si Demo:Enabled = true; en cualquier otro caso, 404.</summary>
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method)]
 public sealed class DemoOnlyAttribute : Attribute, IResourceFilter
 {
     public void OnResourceExecuting(ResourceExecutingContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
-        if (!context.HttpContext.RequestServices.GetRequiredService<IWebHostEnvironment>().IsDevelopment())
+        if (!context.HttpContext.RequestServices.GetRequiredService<IConfiguration>().GetValue<bool>("Demo:Enabled"))
             context.Result = new NotFoundResult();
     }
 
@@ -46,6 +47,7 @@ public sealed class DemoController(
         string Status = OrderStatus.PendingPayment);
 
     [HttpPost("orders")]
+    [EnableRateLimiting(DemoServiceCollectionExtensions.RateLimitPolicy)]
     public async Task<Order> CreateOrder(NewOrder o)
     {
         var order = new Order { DeliveryFee = o.DeliveryFee, Total = o.Total, Currency = "PEN", DriverId = o.DriverId, Status = o.Status };
@@ -68,6 +70,7 @@ public sealed class DemoController(
     public sealed record SendResult(string EventId, int Status, string Body, long Ms);
 
     [HttpPost("send")]
+    [EnableRateLimiting(DemoServiceCollectionExtensions.RateLimitPolicy)]
     public async Task<IReadOnlyList<SendResult>> Send(SendRequest r)
     {
         var order = await db.Orders.AsNoTracking().SingleAsync(o => o.Id == r.OrderId);
@@ -172,6 +175,7 @@ public sealed class DemoController(
     }
 
     [HttpPost("reset")]
+    [EnableRateLimiting(DemoServiceCollectionExtensions.RateLimitPolicy)]
     public async Task<IActionResult> Reset()
     {
         await db.OutboxMessages.ExecuteDeleteAsync();

@@ -1,0 +1,44 @@
+# Demo pública. Uso: cp .env.example .env (completar), docker compose up -d --build
+# El proxy (Caddy) debe estar en la red indicada en PROXY_NETWORK y apuntar a fudis-demo-app:8080.
+name: fudis-demo
+
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: fudis-demo-sql
+    restart: unless-stopped
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${SQL_PASSWORD:?Falta SQL_PASSWORD}
+      MSSQL_MEMORY_LIMIT_MB: "1536"
+    volumes:
+      - sqldata:/var/opt/mssql
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      retries: 30
+
+  app:
+    build: ..
+    container_name: fudis-demo-app
+    restart: unless-stopped
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__Fudis: "Server=sqlserver,1433;Database=FudisDemo;User Id=sa;Password=${SQL_PASSWORD};TrustServerCertificate=True"
+      Payments__WebhookSecret: ${WEBHOOK_SECRET:?Falta WEBHOOK_SECRET}
+      Demo__Enabled: "true"
+      Demo__SelfUrl: http://localhost:8080
+    networks: [internal, proxy]
+
+volumes:
+  sqldata:
+
+networks:
+  internal:
+  proxy:
+    external: true
+    name: ${PROXY_NETWORK:?Falta PROXY_NETWORK (red del Caddy)}

@@ -3,7 +3,8 @@ using Fudis.Payments.Demo;
 using Fudis.Payments.Outbox;
 
 var builder = WebApplication.CreateBuilder(args);
-var isDemo = builder.Environment.IsDevelopment();
+// La demo se activa por configuración (Demo:Enabled), nunca por defecto.
+var isDemo = builder.Configuration.GetValue<bool>("Demo:Enabled");
 
 builder.Services.AddControllers();
 builder.Services.AddPayments(builder.Configuration);
@@ -18,6 +19,7 @@ var app = builder.Build();
 if (isDemo)
 {
     await DemoController.PrepareDatabaseAsync(app.Services);
+    app.UseRateLimiter();
     app.UseDefaultFiles();
     app.UseStaticFiles();
 }

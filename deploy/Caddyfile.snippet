@@ -1,0 +1,5 @@
+# Agregar al Caddyfile del proxy y recargar (caddy reload).
+prueba-fudis.variumcode.com {
+	encode gzip
+	reverse_proxy fudis-demo-app:8080
+}
