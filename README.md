@@ -155,7 +155,7 @@ Todo ocurre en **una transacción** (`ConfirmPaymentHandler`):
 
 ## Pruebas
 
-**Ejecutadas: 39, todas pasan** (`./scripts/test.sh`; resultados en `test-results/resultados.trx`): 22 unitarias y 17 de integración contra SQL Server real. Las dos pruebas de concurrencia se repitieron 5 veces seguidas sin fallos.
+**Ejecutadas: 39, todas pasan** (`./scripts/test.sh`; resultados en `test-results/resultados.trx`): 23 unitarias y 16 de integración contra SQL Server real. Las dos pruebas de concurrencia se repitieron 5 veces seguidas sin fallos.
 
 | Prueba | Qué comprueba |
 |---|---|
