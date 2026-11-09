@@ -34,6 +34,8 @@ Es una página con 10 escenarios. Cada uno se ejecuta con un clic **con el códi
 - **El simulador de la pasarela** llama al endpoint real, con firma, desde el servidor.
 - **El código original** corre tal cual en `/demo/original/confirm-payment`. Solo cambia una cosa: escribe sus ganancias en una tabla aparte sin índice único, para que se vean los duplicados.
 - **Fuera de Development**, todo `/demo` responde 404 y la página no se sirve.
+- **El interruptor "Latencia realista (30 ms)"** agrega una espera solo al código original, entre leer el pedido y guardarlo, como la latencia de una base remota. La carrera existe sin él, pero depende de la suerte: en pruebas locales sin latencia salieron 0, 3 y 20 ganancias duplicadas en ejecuciones distintas. Con latencia se reproduce siempre. La solución no depende del tiempo.
+- **"Ejecutar los 10 escenarios"** corre todo y muestra un marcador. En una ejecución real: original 2/10 correctos, solución 10/10.
 
 **Ejemplo real de una ejecución:** con 20 avisos simultáneos, el original registró 20 ganancias (S/ 140 en lugar de S/ 7) y 20 avisos al restaurante. La solución registró 1 y 1.
 
@@ -164,7 +166,7 @@ Todo ocurre en **una transacción** (`ConfirmPaymentHandler`):
 
 Usé Claude (Anthropic) como asistente para:
 - revisar el código original y discutir los riesgos;
-- generar el borrador de la implementación, las pruebas y este README.
+- generar el borrador de la implementación, las pruebas, la demo visual y este README.
 
 Lo que verifiqué yo:
 - la lógica de concurrencia (UPDATE condicional, índices únicos y la elección de comparar contra `PaidPaymentId` en lugar de leer otras notificaciones, para evitar bloqueos mutuos entre transacciones);

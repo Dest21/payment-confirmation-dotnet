@@ -8,7 +8,7 @@ namespace Fudis.Payments.Tests;
 public class ConfirmPaymentTests
 {
     [Fact]
-    public async Task Pedido_pendiente_queda_pagado_con_ganancia_del_70_y_aviso_en_outbox()
+    public async Task Pending_order_becomes_paid_with_70_percent_earning_and_outbox_notice()
     {
         await using var db = await TestDb.CreateAsync();
         var order = await db.SeedOrderAsync(deliveryFee: 10m);
@@ -29,7 +29,7 @@ public class ConfirmPaymentTests
     }
 
     [Fact]
-    public async Task Misma_notificacion_dos_veces_no_duplica_nada()
+    public async Task Same_notification_twice_has_no_extra_effect()
     {
         await using var db = await TestDb.CreateAsync();
         var order = await db.SeedOrderAsync();
@@ -47,7 +47,7 @@ public class ConfirmPaymentTests
     }
 
     [Fact]
-    public async Task Misma_notificacion_20_veces_en_paralelo_paga_una_sola_vez()
+    public async Task Same_notification_20_times_in_parallel_pays_once()
     {
         await using var db = await TestDb.CreateAsync();
         var order = await db.SeedOrderAsync();
@@ -67,7 +67,7 @@ public class ConfirmPaymentTests
     }
 
     [Fact]
-    public async Task Notificaciones_distintas_del_mismo_pago_en_paralelo_pagan_una_sola_vez()
+    public async Task Different_event_ids_for_same_payment_in_parallel_pay_once()
     {
         await using var db = await TestDb.CreateAsync();
         var order = await db.SeedOrderAsync();
@@ -87,7 +87,7 @@ public class ConfirmPaymentTests
     }
 
     [Fact]
-    public async Task Segundo_cobro_distinto_para_pedido_pagado_genera_alerta_de_doble_cargo()
+    public async Task Second_distinct_charge_for_paid_order_raises_double_charge_alert()
     {
         await using var db = await TestDb.CreateAsync();
         var order = await db.SeedOrderAsync();
@@ -104,7 +104,7 @@ public class ConfirmPaymentTests
     }
 
     [Fact]
-    public async Task Importe_distinto_no_marca_pagado_y_pide_revision()
+    public async Task Amount_mismatch_keeps_order_pending_and_requests_review()
     {
         await using var db = await TestDb.CreateAsync();
         var order = await db.SeedOrderAsync(total: 50m);
@@ -121,7 +121,7 @@ public class ConfirmPaymentTests
     }
 
     [Fact]
-    public async Task Pedido_cancelado_no_se_paga_ni_genera_ganancia()
+    public async Task Cancelled_order_is_not_paid_and_has_no_earning()
     {
         await using var db = await TestDb.CreateAsync();
         var order = await db.SeedOrderAsync(status: OrderStatus.Cancelled);
@@ -136,7 +136,7 @@ public class ConfirmPaymentTests
     }
 
     [Fact]
-    public async Task Pedido_inexistente_no_deja_rastro_para_que_la_pasarela_reintente()
+    public async Task Unknown_order_leaves_no_trace_so_gateway_retries()
     {
         await using var db = await TestDb.CreateAsync();
 
@@ -148,7 +148,7 @@ public class ConfirmPaymentTests
     }
 
     [Fact]
-    public async Task Pedido_sin_repartidor_deja_la_ganancia_pendiente_de_asignacion()
+    public async Task Order_without_driver_gets_pending_assignment_earning()
     {
         await using var db = await TestDb.CreateAsync();
         var order = await db.SeedOrderAsync(driverId: null);
@@ -166,7 +166,7 @@ public class ConfirmPaymentTests
     [InlineData(7.15, 5.01)]   // 5.005 → 5.01 (mitad hacia arriba, no redondeo bancario)
     [InlineData(4.99, 3.49)]   // 3.493 → 3.49
     [InlineData(0, 0)]
-    public async Task Ganancia_se_redondea_a_centimos(decimal fee, decimal expected)
+    public async Task Earning_is_rounded_to_cents(decimal fee, decimal expected)
     {
         await using var db = await TestDb.CreateAsync();
         var order = await db.SeedOrderAsync(deliveryFee: fee);
@@ -179,7 +179,7 @@ public class ConfirmPaymentTests
     }
 
     [Fact]
-    public async Task La_base_rechaza_una_segunda_ganancia_para_el_mismo_pedido()
+    public async Task Database_rejects_second_earning_for_same_order()
     {
         await using var db = await TestDb.CreateAsync();
         var order = await db.SeedOrderAsync();

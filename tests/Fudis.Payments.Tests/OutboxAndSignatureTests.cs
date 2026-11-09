@@ -34,7 +34,7 @@ public class OutboxTests
     }
 
     [Fact]
-    public async Task Si_el_aviso_falla_el_pago_se_mantiene_y_el_aviso_se_reintenta()
+    public async Task Failed_notification_keeps_payment_and_is_retried_after_backoff()
     {
         await using var db = await TestDb.CreateAsync();
         var order = await db.SeedOrderAsync();
@@ -69,7 +69,7 @@ public class OutboxTests
     }
 
     [Fact]
-    public async Task Tras_agotar_los_reintentos_el_mensaje_queda_como_fallido()
+    public async Task Message_is_marked_failed_after_max_attempts()
     {
         await using var db = await TestDb.CreateAsync();
         var order = await db.SeedOrderAsync();
@@ -101,19 +101,19 @@ public class SignatureTests
     private static string Sig(string ts, string body, string secret = "test-secret") =>
         Convert.ToHexString(SignatureVerifier.Sign(secret, ts, body));
 
-    [Fact] public void Firma_correcta_es_valida() => Assert.True(Verifier().IsValid("{}", Ts(), Sig(Ts(), "{}")));
-    [Fact] public void Cuerpo_alterado_es_invalido() => Assert.False(Verifier().IsValid("{\"amount\":1}", Ts(), Sig(Ts(), "{}")));
-    [Fact] public void Otro_secreto_es_invalido() => Assert.False(Verifier().IsValid("{}", Ts(), Sig(Ts(), "{}", "otro")));
-    [Fact] public void Sin_firma_es_invalido() => Assert.False(Verifier().IsValid("{}", Ts(), null));
-    [Fact] public void Firma_vieja_es_invalida() => Assert.False(Verifier().IsValid("{}", Ts(-600), Sig(Ts(-600), "{}")));
-    [Fact] public void Firma_no_hexadecimal_es_invalida() => Assert.False(Verifier().IsValid("{}", Ts(), "zz"));
+    [Fact] public void Valid_signature_is_accepted() => Assert.True(Verifier().IsValid("{}", Ts(), Sig(Ts(), "{}")));
+    [Fact] public void Tampered_body_is_rejected() => Assert.False(Verifier().IsValid("{\"amount\":1}", Ts(), Sig(Ts(), "{}")));
+    [Fact] public void Wrong_secret_is_rejected() => Assert.False(Verifier().IsValid("{}", Ts(), Sig(Ts(), "{}", "otro")));
+    [Fact] public void Missing_signature_is_rejected() => Assert.False(Verifier().IsValid("{}", Ts(), null));
+    [Fact] public void Expired_timestamp_is_rejected() => Assert.False(Verifier().IsValid("{}", Ts(-600), Sig(Ts(-600), "{}")));
+    [Fact] public void Non_hex_signature_is_rejected() => Assert.False(Verifier().IsValid("{}", Ts(), "zz"));
 }
 
 /// <summary>Prueba de punta a punta por HTTP: firma, contrato y códigos de respuesta.</summary>
 public class EndpointTests
 {
     [Fact]
-    public async Task Endpoint_rechaza_firma_invalida_y_acepta_la_valida_de_forma_idempotente()
+    public async Task Endpoint_rejects_bad_signature_and_accepts_valid_one_idempotently()
     {
         await using var db = await TestDb.CreateAsync();
         var order = await db.SeedOrderAsync();

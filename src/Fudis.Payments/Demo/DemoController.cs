@@ -59,7 +59,8 @@ public sealed class DemoController(
         string? EventId = null,
         string PaymentId = "pay_1",
         decimal? Amount = null,
-        bool ValidSignature = true);
+        bool ValidSignature = true,
+        int LatencyMs = 0);             // solo afecta al código original (ver OriginalConfirmPayment)
 
     public sealed record SendResult(string EventId, int Status, string Body, long Ms);
 
@@ -86,6 +87,7 @@ public sealed class DemoController(
             };
             var ts = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
             req.Headers.Add("X-Fudis-Timestamp", ts);
+            req.Headers.Add("X-Demo-Latency", Math.Clamp(r.LatencyMs, 0, 200).ToString());
             req.Headers.Add("X-Fudis-Signature", r.ValidSignature
                 ? Convert.ToHexString(SignatureVerifier.Sign(options.Value.WebhookSecret, ts, body))
                 : new string('0', 64));
@@ -112,6 +114,11 @@ public sealed class DemoController(
         if (order == null)
             return NotFound();
 
+        // Demo: latencia de una base remota entre leer y guardar (interruptor visible en la UI).
+        // No cambia la lógica; solo hace reproducible la carrera que en producción ocurre igual.
+        if (int.TryParse(Request.Headers["X-Demo-Latency"], out var latency) && latency > 0)
+            await Task.Delay(latency);
+
         if (order.Status == "PAID")
             return Ok(new { result = "Ok (ya estaba PAID)" });
 
@@ -134,17 +141,17 @@ public sealed class DemoController(
     public async Task<object> State()
     {
         var legacy = await db.Database
-            .SqlQuery<LegacyEarningRow>($"SELECT TOP 40 Id, OrderId, DriverId, Amount FROM LegacyDriverEarnings ORDER BY Id DESC")
+            .SqlQuery<LegacyEarningRow>($"SELECT TOP 300 Id, OrderId, DriverId, Amount FROM LegacyDriverEarnings ORDER BY Id DESC")
             .ToListAsync();
 
         return new
         {
             restaurantDown = restaurant.Down,
-            orders = await db.Orders.AsNoTracking().OrderByDescending(o => o.Id).Take(15).ToListAsync(),
-            earnings = await db.DriverEarnings.AsNoTracking().OrderByDescending(e => e.Id).Take(30).ToListAsync(),
+            orders = await db.Orders.AsNoTracking().OrderByDescending(o => o.Id).Take(200).ToListAsync(),
+            earnings = await db.DriverEarnings.AsNoTracking().OrderByDescending(e => e.Id).Take(200).ToListAsync(),
             legacyEarnings = legacy,
-            notifications = await db.PaymentNotifications.AsNoTracking().OrderByDescending(n => n.Id).Take(30).ToListAsync(),
-            outbox = await db.OutboxMessages.AsNoTracking().OrderByDescending(m => m.Id).Take(20).ToListAsync(),
+            notifications = await db.PaymentNotifications.AsNoTracking().OrderByDescending(n => n.Id).Take(200).ToListAsync(),
+            outbox = await db.OutboxMessages.AsNoTracking().OrderByDescending(m => m.Id).Take(200).ToListAsync(),
             restaurantReceived = restaurant.Received,
             now = DateTime.UtcNow,
         };

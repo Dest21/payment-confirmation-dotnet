@@ -76,12 +76,35 @@
   dialog .say { background: var(--brand-soft); border-left: 3px solid var(--brand); padding: 10px 12px; border-radius: 6px; margin-top: 12px; }
   dialog code { font-family: var(--mono); background: #f2f0f7; padding: 1px 4px; border-radius: 4px; }
   dialog footer { padding: 12px 22px; border-top: 1px solid var(--line); text-align: right; }
+  .intro ol { margin: 6px 0 12px; padding-left: 20px; color: var(--ink); }
+  .intro li { margin: 3px 0; }
+  .score { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .pill { padding: 4px 10px; border-radius: 999px; font-size: 12.5px; font-weight: 600; }
+  .pill.orig { background: var(--bad-soft); color: var(--bad); }
+  .pill.sol { background: var(--ok-soft); color: var(--ok); }
+  .group { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 18px 4px 8px; }
+  .verdict { font-weight: 700; margin: 2px 0 6px; font-size: 13.5px; }
+  .res.wait { background: var(--warn-soft); border-color: #f1d29c; }
+  .flow { display: flex; gap: 6px; flex-wrap: wrap; }
+  .step { flex: 1 1 130px; border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; background: #faf9fc; transition: background .3s; }
+  .step b { display: flex; align-items: center; gap: 6px; font-size: 12.5px; }
+  .step small { display: block; color: var(--muted); font-size: 11.5px; }
+  .step .count { margin-top: 4px; font-size: 12px; }
+  .step.passed { background: var(--ok-soft); border-color: #bfe6cf; }
+  .step.stopped { background: var(--warn-soft); border-color: #f1d29c; }
+  .step.blocked { background: var(--bad-soft); border-color: #f3c6c6; }
+  .step.idle { opacity: .55; }
+  .flow-note { margin-top: 10px; font-size: 13px; }
 </style>
 </head>
 <body>
 <header>
   <h1><span>Fudis</span> · Demo de confirmación de pagos</h1>
   <div class="sp"></div>
+  <label class="switch" style="background:var(--brand-soft);color:var(--brand)">
+    <input type="checkbox" id="latency" checked> Latencia realista (30 ms)
+    <span class="tip" data-tip="Agrega 30 ms entre que el código ORIGINAL lee el pedido y lo guarda, como la latencia de una base de datos remota en producción. La carrera existe igual sin esto, pero depende de la suerte; con latencia se reproduce siempre. La solución no depende del tiempo: la protegen la base de datos y sus índices únicos.">?</span>
+  </label>
   <label class="switch" id="restSwitch">
     <input type="checkbox" id="restDown"> <span id="restLabel">Restaurante en línea</span>
     <span class="tip" data-tip="Simula que el servicio que avisa al restaurante se cae. Con la solución, el aviso queda en el outbox y se reintenta solo; con el original, el aviso se pierde.">?</span>
@@ -90,9 +113,28 @@
 </header>
 
 <main>
-  <section id="scenarios"></section>
+  <section>
+    <div class="card intro">
+      <h3>Cómo usar esta demo</h3>
+      <ol>
+        <li>En cada escenario presiona <b>▶ Código original</b> y después <b>▶ Solución</b>.</li>
+        <li>Compara: <b style="color:var(--bad)">rojo</b> = el negocio pierde dinero o información; <b style="color:var(--ok)">verde</b> = correcto.</li>
+        <li>Abre <b>¿Por qué?</b> para ver la explicación y la frase para la defensa.</li>
+      </ol>
+      <div class="actions">
+        <button class="btn-sol" id="runAll">▶ Ejecutar los 10 escenarios</button>
+        <div class="score" id="score"></div>
+      </div>
+    </div>
+    <div id="scenarios"></div>
+  </section>
 
   <section>
+    <div class="card panel">
+      <h2>Cómo procesa la solución un aviso <span class="tip" data-tip="Cada aviso de la pasarela pasa por estas capas en orden. Al ejecutar un escenario con la solución se ve en cuál se frenó cada aviso.">?</span></h2>
+      <div class="flow" id="flow"></div>
+      <div class="flow-note" id="flowNote">Ejecuta un escenario con la <b>solución</b> para ver en qué capa se frena cada aviso.</div>
+    </div>
     <div class="card panel">
       <h2>Pedidos <span class="tip" data-tip="Cada escenario crea un pedido nuevo. El estado solo debe pasar de PENDING_PAYMENT a PAID una vez y con el importe correcto.">?</span></h2>
       <div class="scroll"><table id="tOrders"></table></div>
@@ -150,7 +192,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // expect: lo que el negocio necesita que pase. Se evalúa igual para el original y la solución.
 const SCENARIOS = [
   {
-    id: 'normal', title: '1. Pago normal',
+    group: 'Caso feliz', id: 'normal', title: '1. Pago normal',
     desc: 'La pasarela avisa una vez que el cliente pagó.',
     tip: 'El caso feliz: ambas versiones funcionan. Por eso el original "pasó las pruebas funcionales".',
     order: {}, steps: [{}],
@@ -160,7 +202,7 @@ const SCENARIOS = [
     say: 'El código original funciona en el caso feliz; los problemas aparecen con reintentos, concurrencia, fallos y datos no confiables.',
   },
   {
-    id: 'repeat', title: '2. La pasarela reenvía el mismo aviso',
+    group: 'Avisos repetidos y concurrencia', id: 'repeat', title: '2. La pasarela reenvía el mismo aviso',
     desc: 'Dos avisos idénticos, uno detrás del otro (reintento normal de cualquier pasarela).',
     tip: 'Idempotencia: el índice único por EventId en PaymentNotifications.',
     order: {}, steps: [{ eventId: 'fixed' }, { eventId: 'fixed' }],
@@ -190,7 +232,7 @@ const SCENARIOS = [
     say: 'Hay dos capas: idempotencia por evento y una transición de estado atómica. Y una tercera en la base: índice único de ganancia por pedido.',
   },
   {
-    id: 'double', title: '5. Doble cobro al cliente',
+    group: 'Dinero del cliente', id: 'double', title: '5. Doble cobro al cliente',
     desc: 'Llega un segundo cobro distinto (otro PaymentId) para un pedido que ya está pagado.',
     tip: 'Se guarda PaidPaymentId en el pedido; si llega otro cobro, se genera una alerta de posible reembolso.',
     order: {}, steps: [{ paymentId: 'pay_1' }, { paymentId: 'pay_2' }],
@@ -200,7 +242,7 @@ const SCENARIOS = [
     say: 'No basta con no duplicar: hay que detectar el problema del cliente y avisar a alguien.',
   },
   {
-    id: 'amount', title: '6. Importe manipulado',
+    group: 'Datos que no son de confianza', id: 'amount', title: '6. Importe manipulado',
     desc: 'La notificación dice que se pagó S/ 1.00, pero el pedido cuesta S/ 50.00.',
     tip: 'El UPDATE solo se aplica si Total y Currency coinciden con lo que informa la pasarela.',
     order: {}, steps: [{ amount: 1 }],
@@ -210,7 +252,7 @@ const SCENARIOS = [
     say: 'Nunca confíes en lo que llega por la red: el importe se valida contra el pedido.',
   },
   {
-    id: 'cancel', title: '7. Pago de un pedido cancelado',
+    group: 'Reglas de negocio', id: 'cancel', title: '8. Pago de un pedido cancelado',
     desc: 'El cliente canceló, pero luego llega la confirmación del pago.',
     tip: 'Máquina de estados: solo se pasa a PAID desde PENDING_PAYMENT.',
     order: { status: 'CANCELLED' }, steps: [{}],
@@ -220,7 +262,7 @@ const SCENARIOS = [
     say: 'Las transiciones de estado se validan en la misma operación que las aplica.',
   },
   {
-    id: 'forged', title: '8. Notificación falsa (sin firma válida)',
+    id: 'forged', title: '7. Notificación falsa (sin firma válida)',
     desc: 'Alguien que conoce la URL envía un "pago" falso para recibir el pedido gratis.',
     tip: 'Firma HMAC-SHA256 del cuerpo crudo con timestamp (máx. 5 min), comparada en tiempo constante.',
     order: {}, steps: [{ validSignature: false }],
@@ -230,7 +272,7 @@ const SCENARIOS = [
     say: 'Un endpoint que mueve dinero necesita autenticar al emisor.',
   },
   {
-    id: 'down', title: '9. Restaurante caído al confirmar',
+    group: 'Fallos de servicios externos', id: 'down', title: '10. Restaurante caído al confirmar',
     desc: 'El servicio de avisos falla justo al confirmar. Después la pasarela reintenta.',
     tip: 'Patrón outbox: el aviso se guarda junto con el pago y se envía después, con reintentos.',
     order: {}, steps: [{ restaurantDown: true, eventId: 'fixed' }, { eventId: 'fixed' }],
@@ -240,7 +282,7 @@ const SCENARIOS = [
     say: 'No se puede meter una llamada externa en una transacción de base de datos. El outbox convierte "avisar" en un dato que se guarda con el pago.',
   },
   {
-    id: 'nodriver', title: '10. Pago antes de asignar repartidor',
+    id: 'nodriver', title: '9. Pago antes de asignar repartidor',
     desc: 'El cliente paga cuando todavía no hay repartidor (DriverId nulo).',
     tip: 'La ganancia queda PENDING_ASSIGNMENT y se completa al asignar repartidor.',
     order: { driverId: null }, steps: [{}],
@@ -251,10 +293,13 @@ const SCENARIOS = [
   },
 ];
 
+const ORDER = ['normal', 'repeat', 'race', 'retries', 'double', 'amount', 'forged', 'cancel', 'nodriver', 'down'];
+SCENARIOS.sort((a, b) => ORDER.indexOf(a.id) - ORDER.indexOf(b.id));
+
 const runs = {}; // scenarioId -> { original: run, solution: run }
 
 function renderScenarios() {
-  $('#scenarios').innerHTML = SCENARIOS.map((s) => `
+  $('#scenarios').innerHTML = SCENARIOS.map((s) => `${s.group ? `<div class="group">${s.group}</div>` : ''}
     <div class="card" id="sc-${s.id}">
       <h3>${s.title} <span class="tip" data-tip="${esc(s.tip)}">?</span>
         <button class="why" data-why="${s.id}">¿Por qué?</button></h3>
@@ -284,11 +329,13 @@ async function runScenario(id, mode, btn) {
         paymentId: step.paymentId ?? 'pay_1',
         amount: step.amount ?? null,
         validSignature: step.validSignature ?? true,
+        latencyMs: $('#latency').checked ? 30 : 0,
       });
       responses.push(...res);
       await sleep(150);
     }
     runs[id] = { ...(runs[id] || {}), [mode]: { orderId: order.id, responses } };
+    if (mode === 'solution') lastSolution = { scenario: s.title, orderId: order.id, responses };
     toast(`<b>${s.title}</b> · ${mode === 'original' ? 'código original' : 'solución'}: ${summarizeHttp(responses)}`);
     await refresh();
   } catch (e) {
@@ -332,17 +379,37 @@ function evaluate(s, mode, run, st) {
   }
   if (ex.notified !== undefined) {
     const ok = notified === ex.notified;
-    const extra = !ok && pendingRestaurant ? ' — pendiente en outbox, reintentando ⏳' : (!ok && notified === 0 ? ' — el aviso se perdió' : '');
+    const extra = !ok && pendingRestaurant ? ' — pendiente en outbox, reintentando ⏳'
+      : !ok && notified === 0 ? ' — el aviso se perdió' : !ok ? ' — avisado de más' : '';
     checks.push([ok, `Avisos al restaurante: <b>${notified}</b>${extra}`]);
   }
   if (ex.alerts !== undefined) {
     const ok = alerts === ex.alerts;
     checks.push([ok, ex.alerts ? `Alerta para operaciones: <b>${alerts ? 'sí' : 'no'}</b>${ok ? '' : ' — nadie se entera'}` : `Alertas falsas: <b>${alerts}</b>`]);
   }
-  return checks;
+  return { checks, m: { order, earnings, total, notified, alerts, pendingRestaurant } };
+}
+
+function verdict(s, mode, checks, m) {
+  const ex = s.expect;
+  if (checks.every(([ok]) => ok)) return ['pass', '✔ El negocio queda protegido'];
+  const onlyWaiting = checks.every(([ok, t]) => ok || t.startsWith('Avisos al restaurante')) && m.pendingRestaurant;
+  if (onlyWaiting) return ['wait', '⏳ Pago guardado; el aviso se reintenta solo. Pon el restaurante en línea.'];
+  if (ex.status && m.order && m.order.status !== ex.status)
+    return ['fail', ex.status === 'PENDING_PAYMENT' ? '❗ El pedido quedó PAGADO sin un pago válido'
+                  : ex.status === 'CANCELLED' ? '❗ Un pedido cancelado quedó PAGADO y generó ganancia'
+                  : `❗ El pedido quedó ${m.order.status}`];
+  if (ex.earnings !== undefined && m.earnings.length > ex.earnings)
+    return ['fail', `❗ Al repartidor se le pagó ${m.earnings.length} veces: ${money(m.total)} por un envío de ${money(m.order?.deliveryFee ?? 0)}`];
+  if (ex.pendingAssignment) return ['fail', '❗ Ganancia registrada sin repartidor ni estado'];
+  if (ex.notified !== undefined && m.notified === 0) return ['fail', '❗ El restaurante nunca se enteró del pedido'];
+  if (ex.notified !== undefined && m.notified > ex.notified) return ['fail', `❗ El restaurante recibió el aviso ${m.notified} veces`];
+  if (ex.alerts && !m.alerts) return ['fail', '❗ Nadie se entera del problema'];
+  return ['fail', '❗ Comportamiento incorrecto'];
 }
 
 function renderResults(st) {
+  const score = { original: { ok: 0, total: 0 }, solution: { ok: 0, total: 0 } };
   for (const s of SCENARIOS) {
     const box = $(`#res-${s.id}`);
     const r = runs[s.id];
@@ -350,14 +417,20 @@ function renderResults(st) {
     box.innerHTML = ['original', 'solution'].map((mode) => {
       const run = r[mode];
       if (!run) return `<div class="res"><h4>${mode === 'original' ? 'Código original' : 'Solución'}</h4><span class="empty">Sin ejecutar</span></div>`;
-      const checks = evaluate(s, mode, run, st);
-      const pass = checks.every(([ok]) => ok);
-      return `<div class="res ${pass ? 'pass' : 'fail'}">
-        <h4>${mode === 'original' ? 'Código original' : 'Solución'} ${pass ? '✅' : '❌'}</h4>
+      const { checks, m } = evaluate(s, mode, run, st);
+      const [cls, text] = verdict(s, mode, checks, m);
+      score[mode].total++; if (cls === 'pass') score[mode].ok++;
+      return `<div class="res ${cls}">
+        <h4>${mode === 'original' ? 'Código original' : 'Solución'} ${cls === 'pass' ? '✅' : cls === 'wait' ? '⏳' : '❌'}</h4>
+        <div class="verdict">${text}</div>
         <ul>${checks.map(([ok, t]) => `<li>${ok ? '✔' : '✘'} ${t}</li>`).join('')}</ul>
         <div class="http">${esc(summarizeHttp(run.responses))}</div></div>`;
     }).join('');
   }
+  $('#score').innerHTML = score.original.total + score.solution.total
+    ? `<span class="pill orig">Código original: ${score.original.ok}/${score.original.total} correctos</span>
+       <span class="pill sol">Solución: ${score.solution.ok}/${score.solution.total} correctos</span>`
+    : '';
 }
 
 // --------------------------------------------------------------- tablas en vivo
@@ -377,25 +450,76 @@ function table(el, head, rows, empty) {
 
 function renderTables(st) {
   table($('#tOrders'), ['#', 'Estado', 'Tarifa envío', 'Total', 'Repartidor', 'Cobro que pagó'],
-    st.orders.map((o) => [`o${o.id}${o.status}`, [`#${o.id}`, badge(o.status, statusKind[o.status]), money(o.deliveryFee), money(o.total), o.driverId ?? '—', `<span class="mono">${esc(o.paidPaymentId ?? '')}</span>`]]),
+    st.orders.slice(0, 15).map((o) => [`o${o.id}${o.status}`, [`#${o.id}`, badge(o.status, statusKind[o.status]), money(o.deliveryFee), money(o.total), o.driverId ?? '—', `<span class="mono">${esc(o.paidPaymentId ?? '')}</span>`]]),
     'Ejecuta un escenario.');
   table($('#tEarnings'), ['Pedido', 'Monto', 'Estado'],
-    st.earnings.map((e) => [`e${e.id}`, [`#${e.orderId}`, money(e.amount), badge(e.status, statusKind[e.status])]]), 'Sin ganancias.');
+    st.earnings.slice(0, 30).map((e) => [`e${e.id}`, [`#${e.orderId}`, money(e.amount), badge(e.status, statusKind[e.status])]]), 'Sin ganancias.');
   const dupes = {};
   st.legacyEarnings.forEach((e) => (dupes[e.orderId] = (dupes[e.orderId] || 0) + 1));
   table($('#tLegacy'), ['Pedido', 'Monto', ''],
-    st.legacyEarnings.map((e) => [`l${e.id}`, [`#${e.orderId}`, `<span class="mono">${Number(e.amount).toFixed(4)}</span>`, dupes[e.orderId] > 1 ? badge(`duplicada ×${dupes[e.orderId]}`, 'bad') : '']]), 'Sin ganancias.');
+    st.legacyEarnings.slice(0, 40).map((e) => [`l${e.id}`, [`#${e.orderId}`, `<span class="mono">${Number(e.amount).toFixed(4)}</span>`, dupes[e.orderId] > 1 ? badge(`duplicada ×${dupes[e.orderId]}`, 'bad') : '']]), 'Sin ganancias.');
   table($('#tNotifs'), ['EventId', 'Cobro', 'Pedido', 'Importe', 'Resultado'],
-    st.notifications.map((n) => [`n${n.id}`, [`<span class="mono">${esc(n.providerEventId)}</span>`, `<span class="mono">${esc(n.paymentId)}</span>`, `#${n.orderId}`, money(n.amount), badge(n.outcome, statusKind[n.outcome] ?? 'info')]]),
+    st.notifications.slice(0, 30).map((n) => [`n${n.id}`, [`<span class="mono">${esc(n.providerEventId)}</span>`, `<span class="mono">${esc(n.paymentId)}</span>`, `#${n.orderId}`, money(n.amount), badge(n.outcome, statusKind[n.outcome] ?? 'info')]]),
     'Las notificaciones de la solución aparecen aquí.');
   table($('#tOutbox'), ['Tipo', 'Pedido', 'Intentos', 'Estado'],
-    st.outbox.map((m) => {
+    st.outbox.slice(0, 20).map((m) => {
       const p = JSON.parse(m.payload);
       const state = m.processedAt ? badge('enviado', 'ok') : m.failedAt ? badge('fallido', 'bad') : badge(m.attempts ? `reintento ${ago(m.nextAttemptAt, st.now)}` : 'pendiente', 'warn');
       return [`m${m.id}${m.processedAt ? 'p' : m.attempts}`, [m.type === 'RestaurantPaymentConfirmed' ? 'Aviso a restaurante' : badge('Revisión de pago', 'bad'), `#${p.orderId ?? p.OrderId}`, m.attempts, state + (m.lastError && !m.processedAt ? ` <span class="tip" data-tip="${esc(m.lastError)}">!</span>` : '')]];
     }), 'Vacío.');
   table($('#tRest'), ['Pedido', 'Desde', 'Hora'],
-    st.restaurantReceived.map((n) => [`r${n.orderId}${n.at}`, [`#${n.orderId}`, badge(n.source, n.source === 'original' ? 'warn' : 'info'), new Date(n.at).toLocaleTimeString()]]), 'Ningún aviso todavía.');
+    st.restaurantReceived.slice(0, 30).map((n) => [`r${n.orderId}${n.at}`, [`#${n.orderId}`, badge(n.source, n.source === 'original' ? 'warn' : 'info'), new Date(n.at).toLocaleTimeString()]]), 'Ningún aviso todavía.');
+}
+
+const STEPS = [
+  { k: 'sig', t: '1 · Firma', d: '¿Lo envió la pasarela?', tip: 'HMAC-SHA256 del cuerpo exacto + timestamp de máx. 5 min. Si falla: 401 y no se toca la base.' },
+  { k: 'idem', t: '2 · Idempotencia', d: '¿Ya procesé este EventId?', tip: 'Índice único en PaymentNotifications. Repetido: 200 Duplicate, sin efectos.' },
+  { k: 'state', t: '3 · Transición atómica', d: 'PENDING → PAID con importe correcto', tip: 'UPDATE … WHERE Status = PENDING_PAYMENT AND Total = importe. Si dos compiten, gana una sola.' },
+  { k: 'write', t: '4 · Ganancia + outbox', d: 'En la misma transacción', tip: 'Ganancia única por pedido (índice único) y aviso guardado junto con el pago.' },
+  { k: 'send', t: '5 · Aviso al restaurante', d: 'Con reintentos', tip: 'El outbox lo envía cada 2 s; si falla, reintenta con espera exponencial.' },
+];
+let lastSolution = null; // { scenario, orderId, responses }
+
+function stageOf(r) {
+  if (r.status === 401) return 0;
+  let result = '';
+  try { result = JSON.parse(r.body || '{}').result ?? ''; } catch {}
+  if (result === 'Duplicate') return 1;
+  if (result === 'Applied') return 3;
+  return 2; // AlreadyPaid, AmountMismatch, OrderNotPayable, NotFound
+}
+
+function renderFlow(st) {
+  const counts = [0, 0, 0, 0, 0];      // frenados en cada capa
+  let delivered = 0, pending = false;
+  if (lastSolution) {
+    lastSolution.responses.forEach((r) => counts[stageOf(r)]++);
+    delivered = st.restaurantReceived.filter((n) => n.orderId === lastSolution.orderId && n.source === 'solución').length;
+    pending = st.outbox.some((m) => m.type === 'RestaurantPaymentConfirmed' && JSON.parse(m.payload).orderId === lastSolution.orderId && !m.processedAt);
+  }
+  const total = lastSolution?.responses.length ?? 0;
+  let reached = total;
+  $('#flow').innerHTML = STEPS.map((s, i) => {
+    let cls = 'idle', line = '';
+    if (lastSolution) {
+      if (i < 4) {
+        const stopped = i === 3 ? 0 : counts[i];
+        const passed = reached - stopped;
+        cls = reached === 0 ? 'idle' : stopped ? (i === 0 ? 'blocked' : 'stopped') : 'passed';
+        line = reached === 0 ? '' : stopped ? `✋ ${stopped} frenado(s) aquí${passed ? ` · ✔ ${passed} siguió` : ''}` : `✔ ${reached} pasó`;
+        reached = i === 3 ? counts[3] : passed;
+      } else if (counts[3]) {
+        cls = delivered ? 'passed' : pending ? 'stopped' : 'idle';
+        line = delivered ? `✔ entregado (${delivered})` : pending ? '⏳ reintentando…' : '';
+      }
+    }
+    return `<div class="step ${cls}"><b>${s.t} <span class="tip" data-tip="${esc(s.tip)}">?</span></b><small>${s.d}</small>${line ? `<div class="count">${line}</div>` : ''}</div>`;
+  }).join('');
+  if (lastSolution) {
+    const where = ['la firma', 'la idempotencia', 'la transición atómica'];
+    const parts = [0, 1, 2].filter((i) => counts[i]).map((i) => `${counts[i]} en ${where[i]}`);
+    $('#flowNote').innerHTML = `<b>${esc(lastSolution.scenario)}</b>: ${total} aviso(s) → ${counts[3]} aplicado(s)${parts.length ? `, frenados: ${parts.join(', ')}` : ''}.`;
+  }
 }
 
 async function refresh() {
@@ -403,6 +527,7 @@ async function refresh() {
     const st = await api('/demo/state');
     renderTables(st);
     renderResults(st);
+    renderFlow(st);
     $('#restDown').checked = st.restaurantDown;
     $('#restSwitch').classList.toggle('down', st.restaurantDown);
     $('#restLabel').textContent = st.restaurantDown ? 'Restaurante caído' : 'Restaurante en línea';
@@ -426,10 +551,25 @@ document.addEventListener('click', (e) => {
     $('#why').showModal();
   }
 });
+$('#runAll').addEventListener('click', async (e) => {
+  e.target.disabled = true;
+  try {
+    for (const s of SCENARIOS) {
+      document.getElementById(`sc-${s.id}`).scrollIntoView({ behavior: 'smooth', block: 'center' });
+      await runScenario(s.id, 'original');
+      await runScenario(s.id, 'solution');
+      if (s.id === 'down') { await sleep(4000); await setRestaurant(false); }
+      await sleep(400);
+    }
+    toast('Listo: revisa el marcador arriba.');
+  } finally { e.target.disabled = false; }
+});
 $('#restDown').addEventListener('change', (e) => setRestaurant(e.target.checked));
 $('#reset').addEventListener('click', async () => {
   await api('/demo/reset', {});
   for (const k of Object.keys(runs)) delete runs[k];
+  lastSolution = null;
+  $('#flowNote').innerHTML = 'Ejecuta un escenario con la <b>solución</b> para ver en qué capa se frena cada aviso.';
   seen = new Set();
   toast('Datos limpios.');
   await refresh();

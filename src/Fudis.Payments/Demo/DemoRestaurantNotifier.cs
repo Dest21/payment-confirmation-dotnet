@@ -25,7 +25,7 @@ public sealed class DemoRestaurantNotifier : IRestaurantNotifier
         return Task.CompletedTask;
     }
 
-    public IReadOnlyList<ReceivedNotice> Received => _received.Reverse().Take(30).ToList();
+    public IReadOnlyList<ReceivedNotice> Received => _received.Reverse().Take(300).ToList();
 
     public void Clear() => _received.Clear();
 }
