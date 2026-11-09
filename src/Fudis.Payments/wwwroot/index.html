@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fudis · Demo de confirmación de pagos</title>
+<link rel="icon" href="data:,">
+<style>
+  :root {
+    --bg: #f6f5f9; --panel: #ffffff; --ink: #1d1a29; --muted: #6b6680; --line: #e6e3ef;
+    --brand: #6d28d9; --brand-soft: #efe7ff; --ok: #0f8a4b; --ok-soft: #e3f6ec;
+    --bad: #c42b2b; --bad-soft: #fde8e8; --warn: #a15c00; --warn-soft: #fff1dc;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--ink); background: var(--bg); }
+  header { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 16px; padding: 12px 20px;
+           background: var(--panel); border-bottom: 1px solid var(--line); }
+  header h1 { font-size: 16px; margin: 0; }
+  header h1 span { color: var(--brand); }
+  header .sp { flex: 1; }
+  button { font: inherit; cursor: pointer; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); padding: 6px 12px; }
+  button:hover { border-color: var(--brand); }
+  button:disabled { opacity: .5; cursor: wait; }
+  .btn-orig { border-color: #f0c2c2; color: var(--bad); }
+  .btn-sol { background: var(--brand); border-color: var(--brand); color: #fff; }
+  .switch { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 8px; background: var(--ok-soft); color: var(--ok); }
+  .switch.down { background: var(--bad-soft); color: var(--bad); }
+  main { display: grid; grid-template-columns: minmax(0, 520px) minmax(0, 1fr); gap: 16px; padding: 16px 20px; }
+  @media (max-width: 1000px) { main { grid-template-columns: minmax(0, 1fr); } }
+  @media (max-width: 640px) {
+    header { flex-wrap: wrap; padding: 10px 16px; } header .sp { display: none; } header h1 { width: 100%; }
+    main { padding: 12px 16px; } main .results { grid-template-columns: 1fr; }
+    .tip:hover::after { left: auto; right: 0; top: 22px; width: 240px; }
+  }
+  .panel .scroll { overflow-x: auto; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-bottom: 12px; }
+  .card h3 { margin: 0 0 4px; font-size: 15px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .card p { margin: 0 0 10px; color: var(--muted); }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .why { margin-left: auto; font-size: 12px; color: var(--brand); background: var(--brand-soft); border: 0; }
+  .results { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+  .res { border-radius: 8px; padding: 8px 10px; font-size: 13px; border: 1px solid var(--line); }
+  .res h4 { margin: 0 0 4px; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  .res.pass { background: var(--ok-soft); border-color: #bfe6cf; }
+  .res.fail { background: var(--bad-soft); border-color: #f3c6c6; }
+  .res ul { margin: 0; padding-left: 16px; }
+  .res li { margin: 2px 0; }
+  .res .http { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .tip { position: relative; display: inline-flex; width: 18px; height: 18px; border-radius: 50%; align-items: center; justify-content: center;
+         background: var(--brand-soft); color: var(--brand); font-size: 11px; font-weight: 700; cursor: help; }
+  .tip:hover::after { content: attr(data-tip); position: absolute; left: 24px; top: -6px; width: 280px; padding: 8px 10px; border-radius: 8px;
+         background: #1d1a29; color: #fff; font-weight: 400; font-size: 12px; line-height: 1.4; z-index: 10; white-space: normal; }
+  .panel h2 { font-size: 14px; margin: 0 0 8px; display: flex; align-items: center; gap: 8px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  th, td { text-align: left; padding: 5px 6px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { color: var(--muted); font-weight: 600; }
+  td.mono { font-family: var(--mono); font-size: 12px; }
+  .badge { display: inline-block; padding: 1px 7px; border-radius: 999px; font-size: 11.5px; font-weight: 600; }
+  .b-ok { background: var(--ok-soft); color: var(--ok); }
+  .b-bad { background: var(--bad-soft); color: var(--bad); }
+  .b-warn { background: var(--warn-soft); color: var(--warn); }
+  .b-info { background: var(--brand-soft); color: var(--brand); }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 1300px) { .grid2 { grid-template-columns: 1fr; } }
+  .scroll { max-height: 260px; overflow: auto; }
+  .empty { color: var(--muted); font-style: italic; padding: 6px; }
+  .flash { animation: flash 1.2s ease-out; }
+  @keyframes flash { from { background: #fff3b0; } to { background: transparent; } }
+  #toasts { position: fixed; right: 16px; bottom: 16px; display: flex; flex-direction: column; gap: 8px; z-index: 20; }
+  .toast { background: #1d1a29; color: #fff; padding: 10px 14px; border-radius: 10px; max-width: 360px; box-shadow: 0 6px 24px rgba(0,0,0,.2); }
+  dialog { border: 0; border-radius: 14px; padding: 0; max-width: 620px; box-shadow: 0 20px 60px rgba(0,0,0,.3); }
+  dialog::backdrop { background: rgba(20, 16, 35, .45); }
+  dialog .body { padding: 20px 22px; }
+  dialog h3 { margin-top: 0; }
+  dialog .say { background: var(--brand-soft); border-left: 3px solid var(--brand); padding: 10px 12px; border-radius: 6px; margin-top: 12px; }
+  dialog code { font-family: var(--mono); background: #f2f0f7; padding: 1px 4px; border-radius: 4px; }
+  dialog footer { padding: 12px 22px; border-top: 1px solid var(--line); text-align: right; }
+</style>
+</head>
+<body>
+<header>
+  <h1><span>Fudis</span> · Demo de confirmación de pagos</h1>
+  <div class="sp"></div>
+  <label class="switch" id="restSwitch">
+    <input type="checkbox" id="restDown"> <span id="restLabel">Restaurante en línea</span>
+    <span class="tip" data-tip="Simula que el servicio que avisa al restaurante se cae. Con la solución, el aviso queda en el outbox y se reintenta solo; con el original, el aviso se pierde.">?</span>
+  </label>
+  <button id="reset">Limpiar datos</button>
+</header>
+
+<main>
+  <section id="scenarios"></section>
+
+  <section>
+    <div class="card panel">
+      <h2>Pedidos <span class="tip" data-tip="Cada escenario crea un pedido nuevo. El estado solo debe pasar de PENDING_PAYMENT a PAID una vez y con el importe correcto.">?</span></h2>
+      <div class="scroll"><table id="tOrders"></table></div>
+    </div>
+    <div class="grid2">
+      <div class="card panel">
+        <h2>Ganancias · solución <span class="tip" data-tip="Índice único por pedido en la base: aunque la lógica fallara, SQL Server rechaza una segunda ganancia para el mismo pedido.">?</span></h2>
+        <div class="scroll"><table id="tEarnings"></table></div>
+      </div>
+      <div class="card panel">
+        <h2>Ganancias · código original <span class="tip" data-tip="Tabla aparte, sin índice único, donde escribe el código original tal cual. Aquí se ven los pagos duplicados al repartidor.">?</span></h2>
+        <div class="scroll"><table id="tLegacy"></table></div>
+      </div>
+    </div>
+    <div class="card panel">
+      <h2>Notificaciones de la pasarela <span class="tip" data-tip="Cada aviso que llega se registra. El índice único por EventId hace que una notificación repetida no tenga efecto.">?</span></h2>
+      <div class="scroll"><table id="tNotifs"></table></div>
+    </div>
+    <div class="grid2">
+      <div class="card panel">
+        <h2>Outbox <span class="tip" data-tip="Efectos externos guardados en la misma transacción que el pago. Un proceso los envía cada 2 s y, si fallan, reintenta con espera exponencial (2, 4, 8… s).">?</span></h2>
+        <div class="scroll"><table id="tOutbox"></table></div>
+      </div>
+      <div class="card panel">
+        <h2>Restaurante: avisos recibidos <span class="tip" data-tip="Lo que realmente le llegó al restaurante simulado.">?</span></h2>
+        <div class="scroll"><table id="tRest"></table></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div id="toasts"></div>
+<dialog id="why"><div class="body" id="whyBody"></div><footer><button onclick="why.close()">Entendido</button></footer></dialog>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const api = async (path, body) => {
+  const r = await fetch(path, body === undefined ? {} : {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+  });
+  if (!r.ok) throw new Error(`${path} → ${r.status}`);
+  const t = await r.text();
+  return t ? JSON.parse(t) : null;
+};
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const money = (n) => `S/ ${Number(n).toFixed(2)}`;
+const toast = (msg) => {
+  const el = document.createElement('div');
+  el.className = 'toast'; el.innerHTML = msg; $('#toasts').append(el);
+  setTimeout(() => el.remove(), 5000);
+};
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// --------------------------------------------------------------- escenarios
+// expect: lo que el negocio necesita que pase. Se evalúa igual para el original y la solución.
+const SCENARIOS = [
+  {
+    id: 'normal', title: '1. Pago normal',
+    desc: 'La pasarela avisa una vez que el cliente pagó.',
+    tip: 'El caso feliz: ambas versiones funcionan. Por eso el original "pasó las pruebas funcionales".',
+    order: {}, steps: [{}],
+    expect: { status: 'PAID', earnings: 1, notified: 1 },
+    why: `<p>Las dos versiones marcan el pedido como pagado, registran la ganancia y avisan al restaurante.</p>
+          <p>Este es el único escenario que las pruebas funcionales cubrían. El resto de la demo muestra lo que pasa en producción.</p>`,
+    say: 'El código original funciona en el caso feliz; los problemas aparecen con reintentos, concurrencia, fallos y datos no confiables.',
+  },
+  {
+    id: 'repeat', title: '2. La pasarela reenvía el mismo aviso',
+    desc: 'Dos avisos idénticos, uno detrás del otro (reintento normal de cualquier pasarela).',
+    tip: 'Idempotencia: el índice único por EventId en PaymentNotifications.',
+    order: {}, steps: [{ eventId: 'fixed' }, { eventId: 'fixed' }],
+    expect: { status: 'PAID', earnings: 1, notified: 1 },
+    why: `<p>La primera notificación paga el pedido. La segunda intenta insertar el mismo <code>EventId</code> en <code>PaymentNotifications</code>, choca con el índice único y responde <b>200 Duplicate</b> sin tocar nada.</p>
+          <p>Uno detrás del otro, el original también aguanta, porque ve <code>PAID</code> y sale. El problema viene en el siguiente escenario.</p>`,
+    say: 'La idempotencia la garantiza la base de datos, no un if: el índice único por EventId.',
+  },
+  {
+    id: 'race', title: '3. 20 avisos iguales al mismo tiempo',
+    desc: 'La pasarela dispara el mismo aviso 20 veces en paralelo (timeouts y reintentos).',
+    tip: 'Concurrencia: el original lee, decide y escribe sin bloqueo (check-then-act). Varias peticiones ven el pedido sin pagar.',
+    order: {}, steps: [{ copies: 20, eventId: 'fixed' }],
+    expect: { status: 'PAID', earnings: 1, notified: 1 },
+    why: `<p><b>Original:</b> las 20 peticiones hacen <code>FindAsync</code> casi a la vez. Varias leen el pedido como no pagado antes de que la primera guarde, y cada una crea una ganancia. <b>Fudis le paga varias veces al repartidor.</b></p>
+          <p><b>Solución:</b> el INSERT con el mismo <code>EventId</code> se bloquea hasta que la primera transacción termina y después falla por clave duplicada. Una sola gana.</p>`,
+    say: 'Un if de estado no protege contra concurrencia. Lo que protege es una operación atómica en la base: índice único más UPDATE condicional.',
+  },
+  {
+    id: 'retries', title: '4. Reintentos con EventId distinto',
+    desc: '10 avisos en paralelo del mismo cobro, pero la pasarela regenera el EventId en cada reintento.',
+    tip: 'El índice por EventId no alcanza; lo frena el UPDATE condicional: WHERE Status = PENDING_PAYMENT.',
+    order: {}, steps: [{ copies: 10, sameEventId: false }],
+    expect: { status: 'PAID', earnings: 1, notified: 1, alerts: 0 },
+    why: `<p>Como cada aviso tiene un <code>EventId</code> distinto, todos pasan el filtro de idempotencia. Pero la transición es un <code>UPDATE … WHERE Status = 'PENDING_PAYMENT'</code>.</p>
+          <p>SQL Server bloquea la fila: la primera gana, y las demás esperan, vuelven a evaluar la condición y ya no encuentran el pedido pendiente (<b>AlreadyPaid</b>). Son el mismo <code>PaymentId</code>, así que no hay alerta.</p>`,
+    say: 'Hay dos capas: idempotencia por evento y una transición de estado atómica. Y una tercera en la base: índice único de ganancia por pedido.',
+  },
+  {
+    id: 'double', title: '5. Doble cobro al cliente',
+    desc: 'Llega un segundo cobro distinto (otro PaymentId) para un pedido que ya está pagado.',
+    tip: 'Se guarda PaidPaymentId en el pedido; si llega otro cobro, se genera una alerta de posible reembolso.',
+    order: {}, steps: [{ paymentId: 'pay_1' }, { paymentId: 'pay_2' }],
+    expect: { status: 'PAID', earnings: 1, notified: 1, alerts: 1 },
+    why: `<p>El cliente pagó dos veces, por ejemplo con dos clics o dos tarjetas. El original responde 200 y <b>nadie se entera</b>, así que el cliente pierde su dinero.</p>
+          <p>La solución no paga dos veces al repartidor, pero deja en el outbox una alerta <code>PaymentRequiresReview</code> para que operaciones haga el reembolso.</p>`,
+    say: 'No basta con no duplicar: hay que detectar el problema del cliente y avisar a alguien.',
+  },
+  {
+    id: 'amount', title: '6. Importe manipulado',
+    desc: 'La notificación dice que se pagó S/ 1.00, pero el pedido cuesta S/ 50.00.',
+    tip: 'El UPDATE solo se aplica si Total y Currency coinciden con lo que informa la pasarela.',
+    order: {}, steps: [{ amount: 1 }],
+    expect: { status: 'PENDING_PAYMENT', earnings: 0, alerts: 1 },
+    why: `<p>El original no compara el importe: un pago parcial o manipulado deja el pedido como <b>PAID</b>.</p>
+          <p>La solución responde <b>422</b>, deja el pedido pendiente, registra el intento y genera una alerta.</p>`,
+    say: 'Nunca confíes en lo que llega por la red: el importe se valida contra el pedido.',
+  },
+  {
+    id: 'cancel', title: '7. Pago de un pedido cancelado',
+    desc: 'El cliente canceló, pero luego llega la confirmación del pago.',
+    tip: 'Máquina de estados: solo se pasa a PAID desde PENDING_PAYMENT.',
+    order: { status: 'CANCELLED' }, steps: [{}],
+    expect: { status: 'CANCELLED', earnings: 0, alerts: 1 },
+    why: `<p>El original lo marca <b>PAID</b> y le paga al repartidor un envío que no existe.</p>
+          <p>La solución responde <b>409</b>, no toca el pedido y genera una alerta para revisar el reembolso.</p>`,
+    say: 'Las transiciones de estado se validan en la misma operación que las aplica.',
+  },
+  {
+    id: 'forged', title: '8. Notificación falsa (sin firma válida)',
+    desc: 'Alguien que conoce la URL envía un "pago" falso para recibir el pedido gratis.',
+    tip: 'Firma HMAC-SHA256 del cuerpo crudo con timestamp (máx. 5 min), comparada en tiempo constante.',
+    order: {}, steps: [{ validSignature: false }],
+    expect: { status: 'PENDING_PAYMENT', earnings: 0 },
+    why: `<p>El original acepta cualquier POST: basta conocer un <code>OrderId</code>.</p>
+          <p>La solución verifica la firma de la pasarela sobre el cuerpo exacto y responde <b>401</b> sin tocar la base.</p>`,
+    say: 'Un endpoint que mueve dinero necesita autenticar al emisor.',
+  },
+  {
+    id: 'down', title: '9. Restaurante caído al confirmar',
+    desc: 'El servicio de avisos falla justo al confirmar. Después la pasarela reintenta.',
+    tip: 'Patrón outbox: el aviso se guarda junto con el pago y se envía después, con reintentos.',
+    order: {}, steps: [{ restaurantDown: true, eventId: 'fixed' }, { eventId: 'fixed' }],
+    expect: { status: 'PAID', earnings: 1, notified: 1 }, live: true,
+    why: `<p><b>Original:</b> guarda el pago, falla el aviso y responde <b>500</b>. La pasarela reintenta, encuentra el pedido PAID y responde 200. <b>El restaurante nunca se entera</b>: el cliente pagó y nadie cocina.</p>
+          <p><b>Solución:</b> el aviso queda en el outbox. Mira la tabla Outbox, donde los intentos suben con espera exponencial. Después <b>vuelve a poner el restaurante en línea</b> (interruptor de arriba) y el aviso llega solo.</p>`,
+    say: 'No se puede meter una llamada externa en una transacción de base de datos. El outbox convierte "avisar" en un dato que se guarda con el pago.',
+  },
+  {
+    id: 'nodriver', title: '10. Pago antes de asignar repartidor',
+    desc: 'El cliente paga cuando todavía no hay repartidor (DriverId nulo).',
+    tip: 'La ganancia queda PENDING_ASSIGNMENT y se completa al asignar repartidor.',
+    order: { driverId: null }, steps: [{}],
+    expect: { status: 'PAID', earnings: 1, notified: 1, pendingAssignment: true },
+    why: `<p>El original crea una ganancia sin dueño. Si la columna fuera NOT NULL, fallaría con 500 y la pasarela reintentaría sin fin.</p>
+          <p>La solución registra la ganancia como <code>PENDING_ASSIGNMENT</code>, con el porcentaje aplicado, para completarla al asignar repartidor.</p>`,
+    say: 'Los casos de datos incompletos son de negocio: se modelan explícitamente, no se dejan al azar.',
+  },
+];
+
+const runs = {}; // scenarioId -> { original: run, solution: run }
+
+function renderScenarios() {
+  $('#scenarios').innerHTML = SCENARIOS.map((s) => `
+    <div class="card" id="sc-${s.id}">
+      <h3>${s.title} <span class="tip" data-tip="${esc(s.tip)}">?</span>
+        <button class="why" data-why="${s.id}">¿Por qué?</button></h3>
+      <p>${s.desc}</p>
+      <div class="actions">
+        <button class="btn-orig" data-run="${s.id}" data-mode="original">▶ Código original</button>
+        <button class="btn-sol" data-run="${s.id}" data-mode="solution">▶ Solución</button>
+      </div>
+      <div class="results" id="res-${s.id}"></div>
+    </div>`).join('');
+}
+
+async function runScenario(id, mode, btn) {
+  const s = SCENARIOS.find((x) => x.id === id);
+  document.querySelectorAll(`#sc-${id} button[data-run]`).forEach((b) => (b.disabled = true));
+  try {
+    const order = await api('/demo/orders', { deliveryFee: 10, total: 50, driverId: 7, status: 'PENDING_PAYMENT', ...s.order });
+    const fixedEvent = `evt_${id}_${order.id}`;
+    const responses = [];
+    for (const step of s.steps) {
+      if (step.restaurantDown) await setRestaurant(true);
+      const res = await api('/demo/send', {
+        orderId: order.id, mode,
+        copies: step.copies ?? 1,
+        sameEventId: step.sameEventId ?? true,
+        eventId: step.eventId ? fixedEvent : null,
+        paymentId: step.paymentId ?? 'pay_1',
+        amount: step.amount ?? null,
+        validSignature: step.validSignature ?? true,
+      });
+      responses.push(...res);
+      await sleep(150);
+    }
+    runs[id] = { ...(runs[id] || {}), [mode]: { orderId: order.id, responses } };
+    toast(`<b>${s.title}</b> · ${mode === 'original' ? 'código original' : 'solución'}: ${summarizeHttp(responses)}`);
+    await refresh();
+  } catch (e) {
+    toast(`Error: ${esc(e.message)}`);
+  } finally {
+    document.querySelectorAll(`#sc-${id} button[data-run]`).forEach((b) => (b.disabled = false));
+  }
+}
+
+function summarizeHttp(responses) {
+  const groups = {};
+  for (const r of responses) {
+    let label = String(r.status);
+    try { const b = JSON.parse(r.body || '{}'); if (b.result) label += ` ${b.result}`; } catch {}
+    groups[label] = (groups[label] || 0) + 1;
+  }
+  return `${responses.length} envío(s) → ` + Object.entries(groups).map(([k, v]) => `${k}${v > 1 ? ` ×${v}` : ''}`).join(', ');
+}
+
+function evaluate(s, mode, run, st) {
+  const order = st.orders.find((o) => o.id === run.orderId);
+  const earnings = mode === 'original'
+    ? st.legacyEarnings.filter((e) => e.orderId === run.orderId)
+    : st.earnings.filter((e) => e.orderId === run.orderId);
+  const notified = st.restaurantReceived.filter((n) => n.orderId === run.orderId && n.source === (mode === 'original' ? 'original' : 'solución')).length;
+  const alerts = mode === 'original' ? 0 : st.outbox.filter((m) => m.type === 'PaymentRequiresReview' && JSON.parse(m.payload).OrderId === run.orderId).length;
+  const pendingRestaurant = mode === 'solution' && st.outbox.some((m) => m.type === 'RestaurantPaymentConfirmed' && JSON.parse(m.payload).orderId === run.orderId && !m.processedAt);
+  const total = earnings.reduce((a, e) => a + Number(e.amount), 0);
+
+  const checks = [];
+  const ex = s.expect;
+  if (ex.status) checks.push([order?.status === ex.status, `Pedido #${run.orderId}: <b>${order?.status ?? '—'}</b>${order?.status === ex.status ? '' : ` (debería ser ${ex.status})`}`]);
+  if (ex.earnings !== undefined) {
+    const ok = earnings.length === ex.earnings;
+    checks.push([ok, `Ganancias del repartidor: <b>${earnings.length}</b>${earnings.length ? ` (${money(total)})` : ''}${ok ? '' : ` — ${earnings.length > ex.earnings ? 'se pagó de más ❗' : `deberían ser ${ex.earnings}`}`}`]);
+  }
+  if (ex.pendingAssignment) {
+    const e = earnings[0];
+    const ok = mode === 'solution' && e?.status === 'PENDING_ASSIGNMENT';
+    checks.push([ok, ok ? 'Ganancia <b>PENDING_ASSIGNMENT</b> (sin repartidor)' : 'Ganancia sin dueño (DriverId nulo, sin estado)']);
+  }
+  if (ex.notified !== undefined) {
+    const ok = notified === ex.notified;
+    const extra = !ok && pendingRestaurant ? ' — pendiente en outbox, reintentando ⏳' : (!ok && notified === 0 ? ' — el aviso se perdió' : '');
+    checks.push([ok, `Avisos al restaurante: <b>${notified}</b>${extra}`]);
+  }
+  if (ex.alerts !== undefined) {
+    const ok = alerts === ex.alerts;
+    checks.push([ok, ex.alerts ? `Alerta para operaciones: <b>${alerts ? 'sí' : 'no'}</b>${ok ? '' : ' — nadie se entera'}` : `Alertas falsas: <b>${alerts}</b>`]);
+  }
+  return checks;
+}
+
+function renderResults(st) {
+  for (const s of SCENARIOS) {
+    const box = $(`#res-${s.id}`);
+    const r = runs[s.id];
+    if (!r) { box.innerHTML = ''; continue; }
+    box.innerHTML = ['original', 'solution'].map((mode) => {
+      const run = r[mode];
+      if (!run) return `<div class="res"><h4>${mode === 'original' ? 'Código original' : 'Solución'}</h4><span class="empty">Sin ejecutar</span></div>`;
+      const checks = evaluate(s, mode, run, st);
+      const pass = checks.every(([ok]) => ok);
+      return `<div class="res ${pass ? 'pass' : 'fail'}">
+        <h4>${mode === 'original' ? 'Código original' : 'Solución'} ${pass ? '✅' : '❌'}</h4>
+        <ul>${checks.map(([ok, t]) => `<li>${ok ? '✔' : '✘'} ${t}</li>`).join('')}</ul>
+        <div class="http">${esc(summarizeHttp(run.responses))}</div></div>`;
+    }).join('');
+  }
+}
+
+// --------------------------------------------------------------- tablas en vivo
+const badge = (text, kind) => `<span class="badge b-${kind}">${esc(text)}</span>`;
+const statusKind = { PAID: 'ok', PENDING_PAYMENT: 'warn', CANCELLED: 'bad', APPLIED: 'ok', ALREADY_PAID: 'info',
+  AMOUNT_MISMATCH: 'bad', ORDER_NOT_PAYABLE: 'bad', PAYABLE: 'ok', PENDING_ASSIGNMENT: 'warn' };
+const ago = (iso, now) => { if (!iso) return ''; const s = Math.round((new Date(iso) - new Date(now)) / 1000); return s > 0 ? `en ${s}s` : `hace ${-s}s`; };
+let seen = new Set();
+
+function table(el, head, rows, empty) {
+  const fresh = [];
+  el.innerHTML = `<tr>${head.map((h) => `<th>${h}</th>`).join('')}</tr>` + (rows.length
+    ? rows.map(([key, cells]) => { const isNew = !seen.has(key); if (isNew) fresh.push(key); return `<tr class="${isNew && seen.size ? 'flash' : ''}">${cells.map((c) => `<td>${c}</td>`).join('')}</tr>`; }).join('')
+    : `<tr><td class="empty" colspan="${head.length}">${empty}</td></tr>`);
+  fresh.forEach((k) => seen.add(k));
+}
+
+function renderTables(st) {
+  table($('#tOrders'), ['#', 'Estado', 'Tarifa envío', 'Total', 'Repartidor', 'Cobro que pagó'],
+    st.orders.map((o) => [`o${o.id}${o.status}`, [`#${o.id}`, badge(o.status, statusKind[o.status]), money(o.deliveryFee), money(o.total), o.driverId ?? '—', `<span class="mono">${esc(o.paidPaymentId ?? '')}</span>`]]),
+    'Ejecuta un escenario.');
+  table($('#tEarnings'), ['Pedido', 'Monto', 'Estado'],
+    st.earnings.map((e) => [`e${e.id}`, [`#${e.orderId}`, money(e.amount), badge(e.status, statusKind[e.status])]]), 'Sin ganancias.');
+  const dupes = {};
+  st.legacyEarnings.forEach((e) => (dupes[e.orderId] = (dupes[e.orderId] || 0) + 1));
+  table($('#tLegacy'), ['Pedido', 'Monto', ''],
+    st.legacyEarnings.map((e) => [`l${e.id}`, [`#${e.orderId}`, `<span class="mono">${Number(e.amount).toFixed(4)}</span>`, dupes[e.orderId] > 1 ? badge(`duplicada ×${dupes[e.orderId]}`, 'bad') : '']]), 'Sin ganancias.');
+  table($('#tNotifs'), ['EventId', 'Cobro', 'Pedido', 'Importe', 'Resultado'],
+    st.notifications.map((n) => [`n${n.id}`, [`<span class="mono">${esc(n.providerEventId)}</span>`, `<span class="mono">${esc(n.paymentId)}</span>`, `#${n.orderId}`, money(n.amount), badge(n.outcome, statusKind[n.outcome] ?? 'info')]]),
+    'Las notificaciones de la solución aparecen aquí.');
+  table($('#tOutbox'), ['Tipo', 'Pedido', 'Intentos', 'Estado'],
+    st.outbox.map((m) => {
+      const p = JSON.parse(m.payload);
+      const state = m.processedAt ? badge('enviado', 'ok') : m.failedAt ? badge('fallido', 'bad') : badge(m.attempts ? `reintento ${ago(m.nextAttemptAt, st.now)}` : 'pendiente', 'warn');
+      return [`m${m.id}${m.processedAt ? 'p' : m.attempts}`, [m.type === 'RestaurantPaymentConfirmed' ? 'Aviso a restaurante' : badge('Revisión de pago', 'bad'), `#${p.orderId ?? p.OrderId}`, m.attempts, state + (m.lastError && !m.processedAt ? ` <span class="tip" data-tip="${esc(m.lastError)}">!</span>` : '')]];
+    }), 'Vacío.');
+  table($('#tRest'), ['Pedido', 'Desde', 'Hora'],
+    st.restaurantReceived.map((n) => [`r${n.orderId}${n.at}`, [`#${n.orderId}`, badge(n.source, n.source === 'original' ? 'warn' : 'info'), new Date(n.at).toLocaleTimeString()]]), 'Ningún aviso todavía.');
+}
+
+async function refresh() {
+  try {
+    const st = await api('/demo/state');
+    renderTables(st);
+    renderResults(st);
+    $('#restDown').checked = st.restaurantDown;
+    $('#restSwitch').classList.toggle('down', st.restaurantDown);
+    $('#restLabel').textContent = st.restaurantDown ? 'Restaurante caído' : 'Restaurante en línea';
+  } catch (e) { /* servidor reiniciando */ }
+}
+
+async function setRestaurant(down) {
+  await api('/demo/restaurant', { down });
+  toast(down ? 'Restaurante <b>caído</b>: los avisos fallarán.' : 'Restaurante <b>en línea</b>: el outbox entregará lo pendiente.');
+  await refresh();
+}
+
+// --------------------------------------------------------------- eventos
+document.addEventListener('click', (e) => {
+  const run = e.target.closest('[data-run]');
+  if (run) return runScenario(run.dataset.run, run.dataset.mode, run);
+  const w = e.target.closest('[data-why]');
+  if (w) {
+    const s = SCENARIOS.find((x) => x.id === w.dataset.why);
+    $('#whyBody').innerHTML = `<h3>${s.title}</h3>${s.why}<div class="say"><b>Para la defensa:</b> ${s.say}</div>`;
+    $('#why').showModal();
+  }
+});
+$('#restDown').addEventListener('change', (e) => setRestaurant(e.target.checked));
+$('#reset').addEventListener('click', async () => {
+  await api('/demo/reset', {});
+  for (const k of Object.keys(runs)) delete runs[k];
+  seen = new Set();
+  toast('Datos limpios.');
+  await refresh();
+});
+
+renderScenarios();
+refresh();
+setInterval(refresh, 1000);
+</script>
+</body>
+</html>

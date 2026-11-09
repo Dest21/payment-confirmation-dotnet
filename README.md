@@ -23,6 +23,20 @@ El script levanta SQL Server 2022 en un contenedor y corre las pruebas con el SD
 - SQL Server 2022.
 - xUnit 2.9.3.
 
+## Demo visual (opcional, solo en desarrollo)
+
+```bash
+./scripts/demo.sh      # abre http://localhost:5080
+```
+
+Es una página con 10 escenarios. Cada uno se ejecuta con un clic **con el código original y con la solución**, lado a lado, y muestra en vivo los pedidos, las ganancias, las notificaciones, el outbox y lo que recibe el restaurante.
+
+- **El simulador de la pasarela** llama al endpoint real, con firma, desde el servidor.
+- **El código original** corre tal cual en `/demo/original/confirm-payment`. Solo cambia una cosa: escribe sus ganancias en una tabla aparte sin índice único, para que se vean los duplicados.
+- **Fuera de Development**, todo `/demo` responde 404 y la página no se sirve.
+
+**Ejemplo real de una ejecución:** con 20 avisos simultáneos, el original registró 20 ganancias (S/ 140 en lugar de S/ 7) y 20 avisos al restaurante. La solución registró 1 y 1.
+
 ## Hallazgos en el código original, por impacto
 
 | # | Problema | Cómo se manifiesta |
