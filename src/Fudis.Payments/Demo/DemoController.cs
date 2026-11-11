@@ -126,7 +126,7 @@ public sealed class DemoController(
             await Task.Delay(latency);
 
         if (order.Status == "PAID")
-            return Ok(new { result = "Ok (ya estaba PAID)" });
+            return Ok(new { result = "Ok (already PAID)" });
 
         order.Status = "PAID";
 
@@ -140,7 +140,7 @@ public sealed class DemoController(
 
         await restaurant.Receive(order.Id, null, "original");   // si el restaurante está caído: excepción → 500
 
-        return Ok(new { result = "Ok (marcado PAID)" });
+        return Ok(new { result = "Ok (marked PAID)" });
     }
 
     [HttpGet("state")]

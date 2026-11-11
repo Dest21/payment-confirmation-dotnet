@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="es">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -99,30 +99,27 @@
 </head>
 <body>
 <header>
-  <h1><span>Fudis</span> · Demo de confirmación de pagos</h1>
+  <h1><span>Fudis</span> · <span data-i18n="title" style="color:inherit">Demo de confirmación de pagos</span></h1>
   <div class="sp"></div>
   <label class="switch" style="background:var(--brand-soft);color:var(--brand)">
-    <input type="checkbox" id="latency" checked> Latencia realista (30 ms)
-    <span class="tip" data-tip="Agrega 30 ms entre que el código ORIGINAL lee el pedido y lo guarda, como la latencia de una base de datos remota en producción. La carrera existe igual sin esto, pero depende de la suerte; con latencia se reproduce siempre. La solución no depende del tiempo: la protegen la base de datos y sus índices únicos.">?</span>
+    <input type="checkbox" id="latency" checked> <span data-i18n="latency">Latencia realista (30 ms)</span>
+    <span class="tip" data-i18n-tip="latencyTip">?</span>
   </label>
   <label class="switch" id="restSwitch">
     <input type="checkbox" id="restDown"> <span id="restLabel">Restaurante en línea</span>
-    <span class="tip" data-tip="Simula que el servicio que avisa al restaurante se cae. Con la solución, el aviso queda en el outbox y se reintenta solo; con el original, el aviso se pierde.">?</span>
+    <span class="tip" data-i18n-tip="restTip">?</span>
   </label>
-  <button id="reset">Limpiar datos</button>
+  <button id="lang" title="Idioma / Language">ES · <b>EN</b></button>
+  <button id="reset" data-i18n="reset">Limpiar datos</button>
 </header>
 
 <main>
   <section>
     <div class="card intro">
-      <h3>Cómo usar esta demo</h3>
-      <ol>
-        <li>En cada escenario presiona <b>▶ Código original</b> y después <b>▶ Solución</b>.</li>
-        <li>Compara: <b style="color:var(--bad)">rojo</b> = el negocio pierde dinero o información; <b style="color:var(--ok)">verde</b> = correcto.</li>
-        <li>Abre <b>¿Por qué?</b> para ver la explicación y la frase para la defensa.</li>
-      </ol>
+      <h3 data-i18n="howTitle">Cómo usar esta demo</h3>
+      <ol data-i18n="howSteps"></ol>
       <div class="actions">
-        <button class="btn-sol" id="runAll">▶ Ejecutar los 10 escenarios</button>
+        <button class="btn-sol" id="runAll" data-i18n="runAll">▶ Ejecutar los 10 escenarios</button>
         <div class="score" id="score"></div>
       </div>
     </div>
@@ -131,35 +128,35 @@
 
   <section>
     <div class="card panel">
-      <h2>Cómo procesa la solución un aviso <span class="tip" data-tip="Cada aviso de la pasarela pasa por estas capas en orden. Al ejecutar un escenario con la solución se ve en cuál se frenó cada aviso.">?</span></h2>
+      <h2><span data-i18n="flowTitle">Cómo procesa la solución un aviso</span> <span class="tip" data-i18n-tip="flowTip">?</span></h2>
       <div class="flow" id="flow"></div>
-      <div class="flow-note" id="flowNote">Ejecuta un escenario con la <b>solución</b> para ver en qué capa se frena cada aviso.</div>
+      <div class="flow-note" id="flowNote"></div>
     </div>
     <div class="card panel">
-      <h2>Pedidos <span class="tip" data-tip="Cada escenario crea un pedido nuevo. El estado solo debe pasar de PENDING_PAYMENT a PAID una vez y con el importe correcto.">?</span></h2>
+      <h2><span data-i18n="ordersTitle">Pedidos</span> <span class="tip" data-i18n-tip="ordersTip">?</span></h2>
       <div class="scroll"><table id="tOrders"></table></div>
     </div>
     <div class="grid2">
       <div class="card panel">
-        <h2>Ganancias · solución <span class="tip" data-tip="Índice único por pedido en la base: aunque la lógica fallara, SQL Server rechaza una segunda ganancia para el mismo pedido.">?</span></h2>
+        <h2><span data-i18n="earnTitle">Ganancias · solución</span> <span class="tip" data-i18n-tip="earnTip">?</span></h2>
         <div class="scroll"><table id="tEarnings"></table></div>
       </div>
       <div class="card panel">
-        <h2>Ganancias · código original <span class="tip" data-tip="Tabla aparte, sin índice único, donde escribe el código original tal cual. Aquí se ven los pagos duplicados al repartidor.">?</span></h2>
+        <h2><span data-i18n="legacyTitle">Ganancias · código original</span> <span class="tip" data-i18n-tip="legacyTip">?</span></h2>
         <div class="scroll"><table id="tLegacy"></table></div>
       </div>
     </div>
     <div class="card panel">
-      <h2>Notificaciones de la pasarela <span class="tip" data-tip="Cada aviso que llega se registra. El índice único por EventId hace que una notificación repetida no tenga efecto.">?</span></h2>
+      <h2><span data-i18n="notifTitle">Notificaciones de la pasarela</span> <span class="tip" data-i18n-tip="notifTip">?</span></h2>
       <div class="scroll"><table id="tNotifs"></table></div>
     </div>
     <div class="grid2">
       <div class="card panel">
-        <h2>Outbox <span class="tip" data-tip="Efectos externos guardados en la misma transacción que el pago. Un proceso los envía cada 2 s y, si fallan, reintenta con espera exponencial (2, 4, 8… s).">?</span></h2>
+        <h2><span data-i18n="outboxTitle">Outbox</span> <span class="tip" data-i18n-tip="outboxTip">?</span></h2>
         <div class="scroll"><table id="tOutbox"></table></div>
       </div>
       <div class="card panel">
-        <h2>Restaurante: avisos recibidos <span class="tip" data-tip="Lo que realmente le llegó al restaurante simulado.">?</span></h2>
+        <h2><span data-i18n="restRecTitle">Restaurante: avisos recibidos</span> <span class="tip" data-i18n-tip="restRecTip">?</span></h2>
         <div class="scroll"><table id="tRest"></table></div>
       </div>
     </div>
@@ -167,7 +164,7 @@
 </main>
 
 <div id="toasts"></div>
-<dialog id="why"><div class="body" id="whyBody"></div><footer><button onclick="why.close()">Entendido</button></footer></dialog>
+<dialog id="why"><div class="body" id="whyBody"></div><footer><button onclick="why.close()" data-i18n="gotIt">Entendido</button></footer></dialog>
 
 <script>
 const $ = (s) => document.querySelector(s);
@@ -188,6 +185,51 @@ const toast = (msg) => {
 };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// --------------------------------------------------------------- idioma (inglés por defecto)
+let LANG = new URLSearchParams(location.search).get('lang')
+  || (() => { try { return localStorage.getItem('lang'); } catch { return null; } })() || 'en';
+if (!['es', 'en'].includes(LANG)) LANG = 'en';
+const T = (es, en) => (LANG === 'en' ? en : es);
+const sv = (s, k) => (LANG === 'en' && s.en && s.en[k] !== undefined ? s.en[k] : s[k]);
+const I18N = {
+  title: ['Demo de confirmación de pagos', 'Payment confirmation demo'],
+  latency: ['Latencia realista (30 ms)', 'Realistic latency (30 ms)'],
+  latencyTip: ['Agrega 30 ms entre que el código ORIGINAL lee el pedido y lo guarda, como la latencia de una base de datos remota en producción. La carrera existe igual sin esto, pero depende de la suerte; con latencia se reproduce siempre. La solución no depende del tiempo: la protegen la base de datos y sus índices únicos.',
+    'Adds 30 ms between the moment the ORIGINAL code reads the order and saves it, like the latency of a remote production database. The race exists without it, but then it depends on luck; with latency it reproduces every time. The fix does not depend on timing: the database and its unique indexes protect it.'],
+  restTip: ['Simula que el servicio que avisa al restaurante se cae. Con la solución, el aviso queda en el outbox y se reintenta solo; con el original, el aviso se pierde.',
+    'Simulates the restaurant notification service going down. With the fix, the notice stays in the outbox and is retried automatically; with the original, it is lost.'],
+  reset: ['Limpiar datos', 'Reset data'],
+  howTitle: ['Cómo usar esta demo', 'How to use this demo'],
+  howSteps: ['<li>En cada escenario presiona <b>▶ Código original</b> y después <b>▶ Solución</b>.</li><li>Compara: <b style="color:var(--bad)">rojo</b> = el negocio pierde dinero o información; <b style="color:var(--ok)">verde</b> = correcto.</li><li>Abre <b>¿Por qué?</b> para ver la explicación.</li>',
+    '<li>In each scenario, click <b>▶ Original code</b> and then <b>▶ Fix</b>.</li><li>Compare: <b style="color:var(--bad)">red</b> = the business loses money or information; <b style="color:var(--ok)">green</b> = correct.</li><li>Open <b>Why?</b> for the explanation.</li>'],
+  runAll: ['▶ Ejecutar los 10 escenarios', '▶ Run all 10 scenarios'],
+  flowTitle: ['Cómo procesa la solución un aviso', 'How the fix processes a notification'],
+  flowTip: ['Cada aviso de la pasarela pasa por estas capas en orden. Al ejecutar un escenario con la solución se ve en cuál se frenó cada aviso.',
+    'Every gateway notification goes through these layers in order. Run a scenario with the fix to see where each notification was stopped.'],
+  flowNote: ['Ejecuta un escenario con la <b>solución</b> para ver en qué capa se frena cada aviso.', 'Run a scenario with the <b>fix</b> to see which layer stops each notification.'],
+  ordersTitle: ['Pedidos', 'Orders'],
+  ordersTip: ['Cada escenario crea un pedido nuevo. El estado solo debe pasar de PENDING_PAYMENT a PAID una vez y con el importe correcto.', 'Each scenario creates a new order. Its status must go from PENDING_PAYMENT to PAID only once, and only with the right amount.'],
+  earnTitle: ['Ganancias · solución', 'Driver earnings · fix'],
+  earnTip: ['Índice único por pedido en la base: aunque la lógica fallara, SQL Server rechaza una segunda ganancia para el mismo pedido.', 'Unique index per order in the database: even if the logic failed, SQL Server rejects a second earning for the same order.'],
+  legacyTitle: ['Ganancias · código original', 'Driver earnings · original code'],
+  legacyTip: ['Tabla aparte, sin índice único, donde escribe el código original tal cual. Aquí se ven los pagos duplicados al repartidor.', 'A separate table without a unique index, written by the original code as is. Duplicate payments to the driver show up here.'],
+  notifTitle: ['Notificaciones de la pasarela', 'Gateway notifications'],
+  notifTip: ['Cada aviso que llega se registra. El índice único por EventId hace que una notificación repetida no tenga efecto.', 'Every incoming notification is recorded. The unique index on EventId makes a repeated notification have no effect.'],
+  outboxTitle: ['Outbox', 'Outbox'],
+  outboxTip: ['Efectos externos guardados en la misma transacción que el pago. Un proceso los envía cada 2 s y, si fallan, reintenta con espera exponencial (2, 4, 8… s).', 'External effects saved in the same transaction as the payment. A worker sends them every 2 s and retries failures with exponential backoff (2, 4, 8… s).'],
+  restRecTitle: ['Restaurante: avisos recibidos', 'Restaurant: notices received'],
+  restRecTip: ['Lo que realmente le llegó al restaurante simulado.', 'What actually reached the simulated restaurant.'],
+  gotIt: ['Entendido', 'Got it'],
+};
+function applyStatic() {
+  document.documentElement.lang = LANG;
+  document.title = T('Fudis · Demo de confirmación de pagos', 'Fudis · Payment confirmation demo');
+  document.querySelectorAll('[data-i18n]').forEach((el) => { el.innerHTML = T(...I18N[el.dataset.i18n]); });
+  document.querySelectorAll('[data-i18n-tip]').forEach((el) => { el.dataset.tip = T(...I18N[el.dataset.i18nTip]); });
+  $('#lang').innerHTML = LANG === 'en' ? 'ES · <b>EN</b>' : '<b>ES</b> · EN';
+  if (!lastSolution) $('#flowNote').innerHTML = T(...I18N.flowNote);
+}
+
 // --------------------------------------------------------------- escenarios
 // expect: lo que el negocio necesita que pase. Se evalúa igual para el original y la solución.
 const SCENARIOS = [
@@ -200,6 +242,7 @@ const SCENARIOS = [
     why: `<p>Las dos versiones marcan el pedido como pagado, registran la ganancia y avisan al restaurante.</p>
           <p>Este es el único escenario que las pruebas funcionales cubrían. El resto de la demo muestra lo que pasa en producción.</p>`,
     say: 'El código original funciona en el caso feliz; los problemas aparecen con reintentos, concurrencia, fallos y datos no confiables.',
+    en: {"group": "Happy path", "title": "1. Normal payment", "desc": "The gateway notifies once that the customer paid.", "tip": "The happy path: both versions work. That is why the original \"passed the functional tests\".", "why": "<p>Both versions mark the order as paid, record the driver's earning and notify the restaurant.</p><p>This is the only scenario the functional tests covered. The rest of the demo shows what happens in production.</p>", "say": "The original code works on the happy path; the problems show up with retries, concurrency, failures and untrusted data."},
   },
   {
     group: 'Avisos repetidos y concurrencia', id: 'repeat', title: '2. La pasarela reenvía el mismo aviso',
@@ -210,6 +253,7 @@ const SCENARIOS = [
     why: `<p>La primera notificación paga el pedido. La segunda intenta insertar el mismo <code>EventId</code> en <code>PaymentNotifications</code>, choca con el índice único y responde <b>200 Duplicate</b> sin tocar nada.</p>
           <p>Uno detrás del otro, el original también aguanta, porque ve <code>PAID</code> y sale. El problema viene en el siguiente escenario.</p>`,
     say: 'La idempotencia la garantiza la base de datos, no un if: el índice único por EventId.',
+    en: {"group": "Repeated notifications and concurrency", "title": "2. The gateway resends the same notification", "desc": "Two identical notifications, one after the other (a normal retry from any gateway).", "tip": "Idempotency: the unique index on EventId in PaymentNotifications.", "why": "<p>The first notification pays the order. The second tries to insert the same <code>EventId</code> into <code>PaymentNotifications</code>, hits the unique index and returns <b>200 Duplicate</b> without touching anything.</p><p>One after the other, the original also holds, because it sees <code>PAID</code> and returns. The problem comes in the next scenario.</p>", "say": "Idempotency is guaranteed by the database, not by an if: the unique index on EventId."},
   },
   {
     id: 'race', title: '3. 20 avisos iguales al mismo tiempo',
@@ -220,6 +264,7 @@ const SCENARIOS = [
     why: `<p><b>Original:</b> las 20 peticiones hacen <code>FindAsync</code> casi a la vez. Varias leen el pedido como no pagado antes de que la primera guarde, y cada una crea una ganancia. <b>Fudis le paga varias veces al repartidor.</b></p>
           <p><b>Solución:</b> el INSERT con el mismo <code>EventId</code> se bloquea hasta que la primera transacción termina y después falla por clave duplicada. Una sola gana.</p>`,
     say: 'Un if de estado no protege contra concurrencia. Lo que protege es una operación atómica en la base: índice único más UPDATE condicional.',
+    en: {"title": "3. 20 identical notifications at the same time", "desc": "The gateway fires the same notification 20 times in parallel (timeouts and retries).", "tip": "Concurrency: the original reads, decides and writes without any lock (check-then-act). Several requests see the order as unpaid.", "why": "<p><b>Original:</b> the 20 requests call <code>FindAsync</code> almost at once. Several read the order as unpaid before the first one saves, and each creates an earning. <b>The driver gets paid several times.</b></p><p><b>Fix:</b> the INSERT with the same <code>EventId</code> waits until the first transaction finishes and then fails with a duplicate key. Only one wins.</p>", "say": "An if on the status does not protect against concurrency. An atomic operation in the database does: a unique index plus a conditional UPDATE."},
   },
   {
     id: 'retries', title: '4. Reintentos con EventId distinto',
@@ -230,6 +275,7 @@ const SCENARIOS = [
     why: `<p>Como cada aviso tiene un <code>EventId</code> distinto, todos pasan el filtro de idempotencia. Pero la transición es un <code>UPDATE … WHERE Status = 'PENDING_PAYMENT'</code>.</p>
           <p>SQL Server bloquea la fila: la primera gana, y las demás esperan, vuelven a evaluar la condición y ya no encuentran el pedido pendiente (<b>AlreadyPaid</b>). Son el mismo <code>PaymentId</code>, así que no hay alerta.</p>`,
     say: 'Hay dos capas: idempotencia por evento y una transición de estado atómica. Y una tercera en la base: índice único de ganancia por pedido.',
+    en: {"title": "4. Retries with a different EventId", "desc": "10 parallel notifications for the same charge, but the gateway generates a new EventId on each retry.", "tip": "The EventId index is not enough here; the conditional UPDATE stops it: WHERE Status = PENDING_PAYMENT.", "why": "<p>Since each notification has a different <code>EventId</code>, they all pass the idempotency filter. But the transition is an <code>UPDATE … WHERE Status = 'PENDING_PAYMENT'</code>.</p><p>SQL Server locks the row: the first one wins, and the others wait, re-evaluate the condition and no longer find a pending order (<b>AlreadyPaid</b>). Same <code>PaymentId</code>, so no alert.</p>", "say": "Two layers: idempotency per event and an atomic state transition. Plus a third one in the database: a unique earning per order."},
   },
   {
     group: 'Dinero del cliente', id: 'double', title: '5. Doble cobro al cliente',
@@ -240,6 +286,7 @@ const SCENARIOS = [
     why: `<p>El cliente pagó dos veces, por ejemplo con dos clics o dos tarjetas. El original responde 200 y <b>nadie se entera</b>, así que el cliente pierde su dinero.</p>
           <p>La solución no paga dos veces al repartidor, pero deja en el outbox una alerta <code>PaymentReviewRequested</code> para que operaciones haga el reembolso.</p>`,
     say: 'No basta con no duplicar: hay que detectar el problema del cliente y avisar a alguien.',
+    en: {"group": "The customer's money", "title": "5. Customer charged twice", "desc": "A second, different charge (another PaymentId) arrives for an order that is already paid.", "tip": "The order stores PaidPaymentId; if another charge arrives, a possible-refund alert is raised.", "why": "<p>The customer paid twice, for example with two clicks or two cards. The original returns 200 and <b>nobody notices</b>, so the customer loses money.</p><p>The fix does not pay the driver twice, and it leaves a <code>PaymentReviewRequested</code> alert in the outbox so operations can refund.</p>", "say": "Not duplicating is not enough: you have to detect the customer's problem and tell someone."},
   },
   {
     group: 'Datos que no son de confianza', id: 'amount', title: '6. Importe manipulado',
@@ -250,6 +297,7 @@ const SCENARIOS = [
     why: `<p>El original no compara el importe: un pago parcial o manipulado deja el pedido como <b>PAID</b>.</p>
           <p>La solución responde <b>422</b>, deja el pedido pendiente, registra el intento y genera una alerta.</p>`,
     say: 'Nunca confíes en lo que llega por la red: el importe se valida contra el pedido.',
+    en: {"group": "Untrusted data", "title": "6. Tampered amount", "desc": "The notification says S/ 1.00 was paid, but the order costs S/ 50.00.", "tip": "The UPDATE only applies if Total and Currency match what the gateway reports.", "why": "<p>The original does not check the amount: a partial or tampered payment marks the order as <b>PAID</b>.</p><p>The fix returns <b>422</b>, keeps the order pending, records the attempt and raises an alert.</p>", "say": "Never trust what comes over the network: the amount is validated against the order."},
   },
   {
     group: 'Reglas de negocio', id: 'cancel', title: '8. Pago de un pedido cancelado',
@@ -260,6 +308,7 @@ const SCENARIOS = [
     why: `<p>El original lo marca <b>PAID</b> y le paga al repartidor un envío que no existe.</p>
           <p>La solución responde <b>409</b>, no toca el pedido y genera una alerta para revisar el reembolso.</p>`,
     say: 'Las transiciones de estado se validan en la misma operación que las aplica.',
+    en: {"group": "Business rules", "title": "8. Payment for a cancelled order", "desc": "The customer cancelled, but then the payment confirmation arrives.", "tip": "State machine: an order only becomes PAID from PENDING_PAYMENT.", "why": "<p>The original marks it <b>PAID</b> and pays the driver for a delivery that does not exist.</p><p>The fix returns <b>409</b>, leaves the order untouched and raises an alert to review the refund.</p>", "say": "State transitions are validated in the same operation that applies them."},
   },
   {
     id: 'forged', title: '7. Notificación falsa (sin firma válida)',
@@ -270,6 +319,7 @@ const SCENARIOS = [
     why: `<p>El original acepta cualquier POST: basta conocer un <code>OrderId</code>.</p>
           <p>La solución verifica la firma de la pasarela sobre el cuerpo exacto y responde <b>401</b> sin tocar la base.</p>`,
     say: 'Un endpoint que mueve dinero necesita autenticar al emisor.',
+    en: {"title": "7. Forged notification (no valid signature)", "desc": "Someone who knows the URL sends a fake \"payment\" to get the order for free.", "tip": "HMAC-SHA256 signature of the raw body with a timestamp (max. 5 min), compared in constant time.", "why": "<p>The original accepts any POST: knowing an <code>OrderId</code> is enough.</p><p>The fix verifies the gateway signature over the exact body and returns <b>401</b> without touching the database.</p>", "say": "An endpoint that moves money must authenticate the sender."},
   },
   {
     group: 'Fallos de servicios externos', id: 'down', title: '10. Restaurante caído al confirmar',
@@ -280,6 +330,7 @@ const SCENARIOS = [
     why: `<p><b>Original:</b> guarda el pago, falla el aviso y responde <b>500</b>. La pasarela reintenta, encuentra el pedido PAID y responde 200. <b>El restaurante nunca se entera</b>: el cliente pagó y nadie cocina.</p>
           <p><b>Solución:</b> el aviso queda en el outbox. Mira la tabla Outbox, donde los intentos suben con espera exponencial. Después <b>vuelve a poner el restaurante en línea</b> (interruptor de arriba) y el aviso llega solo.</p>`,
     say: 'No se puede meter una llamada externa en una transacción de base de datos. El outbox convierte "avisar" en un dato que se guarda con el pago.',
+    en: {"group": "External service failures", "title": "10. Restaurant service down at confirmation", "desc": "The notification service fails right at confirmation. Then the gateway retries.", "tip": "Outbox pattern: the notice is saved together with the payment and sent later, with retries.", "why": "<p><b>Original:</b> saves the payment, the notice fails and it returns <b>500</b>. The gateway retries, finds the order PAID and gets 200. <b>The restaurant never finds out</b>: the customer paid and nobody cooks.</p><p><b>Fix:</b> the notice stays in the outbox. Watch the Outbox table, where attempts grow with exponential backoff. Then <b>turn the restaurant back online</b> (switch at the top) and the notice arrives on its own.</p>", "say": "You cannot put an external call inside a database transaction. The outbox turns \"notify\" into data saved with the payment."},
   },
   {
     id: 'nodriver', title: '9. Pago antes de asignar repartidor',
@@ -290,6 +341,7 @@ const SCENARIOS = [
     why: `<p>El original crea una ganancia sin dueño. Si la columna fuera NOT NULL, fallaría con 500 y la pasarela reintentaría sin fin.</p>
           <p>La solución registra la ganancia como <code>PENDING_ASSIGNMENT</code>, con el porcentaje aplicado, para completarla al asignar repartidor.</p>`,
     say: 'Los casos de datos incompletos son de negocio: se modelan explícitamente, no se dejan al azar.',
+    en: {"title": "9. Payment before a driver is assigned", "desc": "The customer pays while there is no driver yet (null DriverId).", "tip": "The earning is stored as PENDING_ASSIGNMENT and completed when a driver is assigned.", "why": "<p>The original creates an earning with no owner. If the column were NOT NULL, it would fail with 500 and the gateway would retry forever.</p><p>The fix records the earning as <code>PENDING_ASSIGNMENT</code>, with the applied rate, to complete it when a driver is assigned.</p>", "say": "Incomplete-data cases are business cases: model them explicitly, don't leave them to chance."},
   },
 ];
 
@@ -299,14 +351,14 @@ SCENARIOS.sort((a, b) => ORDER.indexOf(a.id) - ORDER.indexOf(b.id));
 const runs = {}; // scenarioId -> { original: run, solution: run }
 
 function renderScenarios() {
-  $('#scenarios').innerHTML = SCENARIOS.map((s) => `${s.group ? `<div class="group">${s.group}</div>` : ''}
+  $('#scenarios').innerHTML = SCENARIOS.map((s) => `${s.group ? `<div class="group">${sv(s, 'group')}</div>` : ''}
     <div class="card" id="sc-${s.id}">
-      <h3>${s.title} <span class="tip" data-tip="${esc(s.tip)}">?</span>
-        <button class="why" data-why="${s.id}">¿Por qué?</button></h3>
-      <p>${s.desc}</p>
+      <h3>${sv(s, 'title')} <span class="tip" data-tip="${esc(sv(s, 'tip'))}">?</span>
+        <button class="why" data-why="${s.id}">${T('¿Por qué?', 'Why?')}</button></h3>
+      <p>${sv(s, 'desc')}</p>
       <div class="actions">
-        <button class="btn-orig" data-run="${s.id}" data-mode="original">▶ Código original</button>
-        <button class="btn-sol" data-run="${s.id}" data-mode="solution">▶ Solución</button>
+        <button class="btn-orig" data-run="${s.id}" data-mode="original">${T('▶ Código original', '▶ Original code')}</button>
+        <button class="btn-sol" data-run="${s.id}" data-mode="solution">${T('▶ Solución', '▶ Fix')}</button>
       </div>
       <div class="results" id="res-${s.id}"></div>
     </div>`).join('');
@@ -335,8 +387,8 @@ async function runScenario(id, mode, btn) {
       await sleep(150);
     }
     runs[id] = { ...(runs[id] || {}), [mode]: { orderId: order.id, responses } };
-    if (mode === 'solution') lastSolution = { scenario: s.title, orderId: order.id, responses };
-    toast(`<b>${s.title}</b> · ${mode === 'original' ? 'código original' : 'solución'}: ${summarizeHttp(responses)}`);
+    if (mode === 'solution') lastSolution = { id: s.id, orderId: order.id, responses };
+    toast(`<b>${sv(s, 'title')}</b> · ${mode === 'original' ? T('código original', 'original code') : T('solución', 'fix')}: ${summarizeHttp(responses)}`);
     await refresh();
   } catch (e) {
     toast(`Error: ${esc(e.message)}`);
@@ -352,7 +404,7 @@ function summarizeHttp(responses) {
     try { const b = JSON.parse(r.body || '{}'); if (b.result) label += ` ${b.result}`; } catch {}
     groups[label] = (groups[label] || 0) + 1;
   }
-  return `${responses.length} envío(s) → ` + Object.entries(groups).map(([k, v]) => `${k}${v > 1 ? ` ×${v}` : ''}`).join(', ');
+  return `${responses.length} ${T('envío(s)', 'request(s)')} → ` + Object.entries(groups).map(([k, v]) => `${k}${v > 1 ? ` ×${v}` : ''}`).join(', ');
 }
 
 function evaluate(s, mode, run, st) {
@@ -367,45 +419,46 @@ function evaluate(s, mode, run, st) {
 
   const checks = [];
   const ex = s.expect;
-  if (ex.status) checks.push([order?.status === ex.status, `Pedido #${run.orderId}: <b>${order?.status ?? '—'}</b>${order?.status === ex.status ? '' : ` (debería ser ${ex.status})`}`]);
+  if (ex.status) checks.push([order?.status === ex.status, `${T('Pedido', 'Order')} #${run.orderId}: <b>${order?.status ?? '—'}</b>${order?.status === ex.status ? '' : ` (${T('debería ser', 'should be')} ${ex.status})`}`]);
   if (ex.earnings !== undefined) {
     const ok = earnings.length === ex.earnings;
-    checks.push([ok, `Ganancias del repartidor: <b>${earnings.length}</b>${earnings.length ? ` (${money(total)})` : ''}${ok ? '' : ` — ${earnings.length > ex.earnings ? 'se pagó de más ❗' : `deberían ser ${ex.earnings}`}`}`]);
+    checks.push([ok, `${T('Ganancias del repartidor', 'Driver earnings')}: <b>${earnings.length}</b>${earnings.length ? ` (${money(total)})` : ''}${ok ? '' : ` — ${earnings.length > ex.earnings ? T('se pagó de más ❗', 'overpaid ❗') : `${T('deberían ser', 'should be')} ${ex.earnings}`}`}`]);
   }
   if (ex.pendingAssignment) {
     const e = earnings[0];
     const ok = mode === 'solution' && e?.status === 'PENDING_ASSIGNMENT';
-    checks.push([ok, ok ? 'Ganancia <b>PENDING_ASSIGNMENT</b> (sin repartidor)' : 'Ganancia sin dueño (DriverId nulo, sin estado)']);
+    checks.push([ok, ok ? T('Ganancia <b>PENDING_ASSIGNMENT</b> (sin repartidor)', 'Earning <b>PENDING_ASSIGNMENT</b> (no driver yet)') : T('Ganancia sin dueño (DriverId nulo, sin estado)', 'Earning with no owner (null DriverId, no status)')]);
   }
   if (ex.notified !== undefined) {
     const ok = notified === ex.notified;
-    const extra = !ok && pendingRestaurant ? ' — pendiente en outbox, reintentando ⏳'
-      : !ok && notified === 0 ? ' — el aviso se perdió' : !ok ? ' — avisado de más' : '';
-    checks.push([ok, `Avisos al restaurante: <b>${notified}</b>${extra}`]);
+    const extra = !ok && pendingRestaurant ? T(' — pendiente en outbox, reintentando ⏳', ' — pending in the outbox, retrying ⏳')
+      : !ok && notified === 0 ? T(' — el aviso se perdió', ' — the notice was lost') : !ok ? T(' — avisado de más', ' — notified too many times') : '';
+    checks.push([ok, `${T('Avisos al restaurante', 'Restaurant notices')}: <b>${notified}</b>${extra}`, 'notified']);
   }
   if (ex.alerts !== undefined) {
     const ok = alerts === ex.alerts;
-    checks.push([ok, ex.alerts ? `Alerta para operaciones: <b>${alerts ? 'sí' : 'no'}</b>${ok ? '' : ' — nadie se entera'}` : `Alertas falsas: <b>${alerts}</b>`]);
+    checks.push([ok, ex.alerts ? `${T('Alerta para operaciones', 'Alert to operations')}: <b>${alerts ? T('sí', 'yes') : 'no'}</b>${ok ? '' : T(' — nadie se entera', ' — nobody finds out')}` : `${T('Alertas falsas', 'False alerts')}: <b>${alerts}</b>`]);
   }
   return { checks, m: { order, earnings, total, notified, alerts, pendingRestaurant } };
 }
 
 function verdict(s, mode, checks, m) {
   const ex = s.expect;
-  if (checks.every(([ok]) => ok)) return ['pass', '✔ El negocio queda protegido'];
-  const onlyWaiting = checks.every(([ok, t]) => ok || t.startsWith('Avisos al restaurante')) && m.pendingRestaurant;
-  if (onlyWaiting) return ['wait', '⏳ Pago guardado; el aviso se reintenta solo. Pon el restaurante en línea.'];
+  if (checks.every(([ok]) => ok)) return ['pass', T('✔ El negocio queda protegido', '✔ The business is protected')];
+  const onlyWaiting = checks.every(([ok, , kind]) => ok || kind === 'notified') && m.pendingRestaurant;
+  if (onlyWaiting) return ['wait', T('⏳ Pago guardado; el aviso se reintenta solo. Pon el restaurante en línea.', '⏳ Payment saved; the notice retries on its own. Turn the restaurant back online.')];
   if (ex.status && m.order && m.order.status !== ex.status)
-    return ['fail', ex.status === 'PENDING_PAYMENT' ? '❗ El pedido quedó PAGADO sin un pago válido'
-                  : ex.status === 'CANCELLED' ? '❗ Un pedido cancelado quedó PAGADO y generó ganancia'
-                  : `❗ El pedido quedó ${m.order.status}`];
+    return ['fail', ex.status === 'PENDING_PAYMENT' ? T('❗ El pedido quedó PAGADO sin un pago válido', '❗ The order was marked PAID without a valid payment')
+                  : ex.status === 'CANCELLED' ? T('❗ Un pedido cancelado quedó PAGADO y generó ganancia', '❗ A cancelled order was marked PAID and paid the driver')
+                  : `❗ ${T('El pedido quedó', 'The order ended up')} ${m.order.status}`];
   if (ex.earnings !== undefined && m.earnings.length > ex.earnings)
-    return ['fail', `❗ Al repartidor se le pagó ${m.earnings.length} veces: ${money(m.total)} por un envío de ${money(m.order?.deliveryFee ?? 0)}`];
-  if (ex.pendingAssignment) return ['fail', '❗ Ganancia registrada sin repartidor ni estado'];
-  if (ex.notified !== undefined && m.notified === 0) return ['fail', '❗ El restaurante nunca se enteró del pedido'];
-  if (ex.notified !== undefined && m.notified > ex.notified) return ['fail', `❗ El restaurante recibió el aviso ${m.notified} veces`];
-  if (ex.alerts && !m.alerts) return ['fail', '❗ Nadie se entera del problema'];
-  return ['fail', '❗ Comportamiento incorrecto'];
+    return ['fail', T(`❗ Al repartidor se le pagó ${m.earnings.length} veces: ${money(m.total)} por un envío de ${money(m.order?.deliveryFee ?? 0)}`,
+                      `❗ The driver was paid ${m.earnings.length} times: ${money(m.total)} for a ${money(m.order?.deliveryFee ?? 0)} delivery`)];
+  if (ex.pendingAssignment) return ['fail', T('❗ Ganancia registrada sin repartidor ni estado', '❗ Earning recorded with no driver and no status')];
+  if (ex.notified !== undefined && m.notified === 0) return ['fail', T('❗ El restaurante nunca se enteró del pedido', '❗ The restaurant never found out about the order')];
+  if (ex.notified !== undefined && m.notified > ex.notified) return ['fail', T(`❗ El restaurante recibió el aviso ${m.notified} veces`, `❗ The restaurant was notified ${m.notified} times`)];
+  if (ex.alerts && !m.alerts) return ['fail', T('❗ Nadie se entera del problema', '❗ Nobody finds out about the problem')];
+  return ['fail', T('❗ Comportamiento incorrecto', '❗ Wrong behavior')];
 }
 
 function renderResults(st) {
@@ -416,20 +469,21 @@ function renderResults(st) {
     if (!r) { box.innerHTML = ''; continue; }
     box.innerHTML = ['original', 'solution'].map((mode) => {
       const run = r[mode];
-      if (!run) return `<div class="res"><h4>${mode === 'original' ? 'Código original' : 'Solución'}</h4><span class="empty">Sin ejecutar</span></div>`;
+      const label = mode === 'original' ? T('Código original', 'Original code') : T('Solución', 'Fix');
+      if (!run) return `<div class="res"><h4>${label}</h4><span class="empty">${T('Sin ejecutar', 'Not run yet')}</span></div>`;
       const { checks, m } = evaluate(s, mode, run, st);
       const [cls, text] = verdict(s, mode, checks, m);
       score[mode].total++; if (cls === 'pass') score[mode].ok++;
       return `<div class="res ${cls}">
-        <h4>${mode === 'original' ? 'Código original' : 'Solución'} ${cls === 'pass' ? '✅' : cls === 'wait' ? '⏳' : '❌'}</h4>
+        <h4>${label} ${cls === 'pass' ? '✅' : cls === 'wait' ? '⏳' : '❌'}</h4>
         <div class="verdict">${text}</div>
         <ul>${checks.map(([ok, t]) => `<li>${ok ? '✔' : '✘'} ${t}</li>`).join('')}</ul>
         <div class="http">${esc(summarizeHttp(run.responses))}</div></div>`;
     }).join('');
   }
   $('#score').innerHTML = score.original.total + score.solution.total
-    ? `<span class="pill orig">Código original: ${score.original.ok}/${score.original.total} correctos</span>
-       <span class="pill sol">Solución: ${score.solution.ok}/${score.solution.total} correctos</span>`
+    ? `<span class="pill orig">${T('Código original', 'Original code')}: ${score.original.ok}/${score.original.total} ${T('correctos', 'correct')}</span>
+       <span class="pill sol">${T('Solución', 'Fix')}: ${score.solution.ok}/${score.solution.total} ${T('correctos', 'correct')}</span>`
     : '';
 }
 
@@ -437,7 +491,7 @@ function renderResults(st) {
 const badge = (text, kind) => `<span class="badge b-${kind}">${esc(text)}</span>`;
 const statusKind = { PAID: 'ok', PENDING_PAYMENT: 'warn', CANCELLED: 'bad', APPLIED: 'ok', ALREADY_PAID: 'info',
   AMOUNT_MISMATCH: 'bad', ORDER_NOT_PAYABLE: 'bad', PAYABLE: 'ok', PENDING_ASSIGNMENT: 'warn' };
-const ago = (iso, now) => { if (!iso) return ''; const s = Math.round((new Date(iso) - new Date(now)) / 1000); return s > 0 ? `en ${s}s` : `hace ${-s}s`; };
+const ago = (iso, now) => { if (!iso) return ''; const s = Math.round((new Date(iso) - new Date(now)) / 1000); return s > 0 ? T(`en ${s}s`, `in ${s}s`) : T(`hace ${-s}s`, `${-s}s ago`); };
 let seen = new Set();
 
 function table(el, head, rows, empty) {
@@ -449,34 +503,34 @@ function table(el, head, rows, empty) {
 }
 
 function renderTables(st) {
-  table($('#tOrders'), ['#', 'Estado', 'Tarifa envío', 'Total', 'Repartidor', 'Cobro que pagó'],
+  table($('#tOrders'), ['#', T('Estado', 'Status'), T('Tarifa envío', 'Delivery fee'), 'Total', T('Repartidor', 'Driver'), T('Cobro que pagó', 'Paid by charge')],
     st.orders.slice(0, 15).map((o) => [`o${o.id}${o.status}`, [`#${o.id}`, badge(o.status, statusKind[o.status]), money(o.deliveryFee), money(o.total), o.driverId ?? '—', `<span class="mono">${esc(o.paidPaymentId ?? '')}</span>`]]),
-    'Ejecuta un escenario.');
-  table($('#tEarnings'), ['Pedido', 'Monto', 'Estado'],
-    st.earnings.slice(0, 30).map((e) => [`e${e.id}`, [`#${e.orderId}`, money(e.amount), badge(e.status, statusKind[e.status])]]), 'Sin ganancias.');
+    T('Ejecuta un escenario.', 'Run a scenario.'));
+  table($('#tEarnings'), [T('Pedido', 'Order'), T('Monto', 'Amount'), T('Estado', 'Status')],
+    st.earnings.slice(0, 30).map((e) => [`e${e.id}`, [`#${e.orderId}`, money(e.amount), badge(e.status, statusKind[e.status])]]), T('Sin ganancias.', 'No earnings.'));
   const dupes = {};
   st.legacyEarnings.forEach((e) => (dupes[e.orderId] = (dupes[e.orderId] || 0) + 1));
-  table($('#tLegacy'), ['Pedido', 'Monto', ''],
-    st.legacyEarnings.slice(0, 40).map((e) => [`l${e.id}`, [`#${e.orderId}`, `<span class="mono">${Number(e.amount).toFixed(4)}</span>`, dupes[e.orderId] > 1 ? badge(`duplicada ×${dupes[e.orderId]}`, 'bad') : '']]), 'Sin ganancias.');
-  table($('#tNotifs'), ['EventId', 'Cobro', 'Pedido', 'Importe', 'Resultado'],
+  table($('#tLegacy'), [T('Pedido', 'Order'), T('Monto', 'Amount'), ''],
+    st.legacyEarnings.slice(0, 40).map((e) => [`l${e.id}`, [`#${e.orderId}`, `<span class="mono">${Number(e.amount).toFixed(4)}</span>`, dupes[e.orderId] > 1 ? badge(`${T('duplicada', 'duplicate')} ×${dupes[e.orderId]}`, 'bad') : '']]), T('Sin ganancias.', 'No earnings.'));
+  table($('#tNotifs'), ['EventId', T('Cobro', 'Charge'), T('Pedido', 'Order'), T('Importe', 'Amount'), T('Resultado', 'Result')],
     st.notifications.slice(0, 30).map((n) => [`n${n.id}`, [`<span class="mono">${esc(n.providerEventId)}</span>`, `<span class="mono">${esc(n.paymentId)}</span>`, `#${n.orderId}`, money(n.amount), badge(n.outcome, statusKind[n.outcome] ?? 'info')]]),
-    'Las notificaciones de la solución aparecen aquí.');
-  table($('#tOutbox'), ['Tipo', 'Pedido', 'Intentos', 'Estado'],
+    T('Las notificaciones de la solución aparecen aquí.', 'Notifications handled by the fix appear here.'));
+  table($('#tOutbox'), [T('Tipo', 'Type'), T('Pedido', 'Order'), T('Intentos', 'Attempts'), T('Estado', 'Status')],
     st.outbox.slice(0, 20).map((m) => {
       const p = JSON.parse(m.payload);
-      const state = m.processedAt ? badge('enviado', 'ok') : m.failedAt ? badge('fallido', 'bad') : badge(m.attempts ? `reintento ${ago(m.nextAttemptAt, st.now)}` : 'pendiente', 'warn');
-      return [`m${m.id}${m.processedAt ? 'p' : m.attempts}`, [m.type === 'RestaurantPaymentConfirmed' ? 'Aviso a restaurante' : badge('Revisión de pago', 'bad'), `#${p.orderId}`, m.attempts, state + (m.lastError && !m.processedAt ? ` <span class="tip" data-tip="${esc(m.lastError)}">!</span>` : '')]];
-    }), 'Vacío.');
-  table($('#tRest'), ['Pedido', 'Desde', 'Hora'],
-    st.restaurantReceived.slice(0, 30).map((n) => [`r${n.orderId}${n.at}`, [`#${n.orderId}`, badge(n.source, n.source === 'original' ? 'warn' : 'info'), new Date(n.at).toLocaleTimeString()]]), 'Ningún aviso todavía.');
+      const state = m.processedAt ? badge(T('enviado', 'sent'), 'ok') : m.failedAt ? badge(T('fallido', 'failed'), 'bad') : badge(m.attempts ? `${T('reintento', 'retry')} ${ago(m.nextAttemptAt, st.now)}` : T('pendiente', 'pending'), 'warn');
+      return [`m${m.id}${m.processedAt ? 'p' : m.attempts}`, [m.type === 'RestaurantPaymentConfirmed' ? T('Aviso a restaurante', 'Restaurant notice') : badge(T('Revisión de pago', 'Payment review'), 'bad'), `#${p.orderId}`, m.attempts, state + (m.lastError && !m.processedAt ? ` <span class="tip" data-tip="${esc(m.lastError)}">!</span>` : '')]];
+    }), T('Vacío.', 'Empty.'));
+  table($('#tRest'), [T('Pedido', 'Order'), T('Desde', 'From'), T('Hora', 'Time')],
+    st.restaurantReceived.slice(0, 30).map((n) => [`r${n.orderId}${n.at}`, [`#${n.orderId}`, badge(n.source === 'original' ? T('original', 'original') : T('solución', 'fix'), n.source === 'original' ? 'warn' : 'info'), new Date(n.at).toLocaleTimeString()]]), T('Ningún aviso todavía.', 'No notices yet.'));
 }
 
-const STEPS = [
-  { k: 'sig', t: '1 · Firma', d: '¿Lo envió la pasarela?', tip: 'HMAC-SHA256 del cuerpo exacto + timestamp de máx. 5 min. Si falla: 401 y no se toca la base.' },
-  { k: 'idem', t: '2 · Idempotencia', d: '¿Ya procesé este EventId?', tip: 'Índice único en PaymentNotifications. Repetido: 200 Duplicate, sin efectos.' },
-  { k: 'state', t: '3 · Transición atómica', d: 'PENDING → PAID con importe correcto', tip: 'UPDATE … WHERE Status = PENDING_PAYMENT AND Total = importe. Si dos compiten, gana una sola.' },
-  { k: 'write', t: '4 · Ganancia + outbox', d: 'En la misma transacción', tip: 'Ganancia única por pedido (índice único) y aviso guardado junto con el pago.' },
-  { k: 'send', t: '5 · Aviso al restaurante', d: 'Con reintentos', tip: 'El outbox lo envía cada 2 s; si falla, reintenta con espera exponencial.' },
+const STEPS = () => [
+  { k: 'sig', t: T('1 · Firma', '1 · Signature'), d: T('¿Lo envió la pasarela?', 'Did the gateway send it?'), tip: T('HMAC-SHA256 del cuerpo exacto + timestamp de máx. 5 min. Si falla: 401 y no se toca la base.', 'HMAC-SHA256 of the exact body + a timestamp of max. 5 min. If it fails: 401, and the database is not touched.') },
+  { k: 'idem', t: T('2 · Idempotencia', '2 · Idempotency'), d: T('¿Ya procesé este EventId?', 'Did I already process this EventId?'), tip: T('Índice único en PaymentNotifications. Repetido: 200 Duplicate, sin efectos.', 'Unique index on PaymentNotifications. Repeated: 200 Duplicate, no effects.') },
+  { k: 'state', t: T('3 · Transición atómica', '3 · Atomic transition'), d: T('PENDING → PAID con importe correcto', 'PENDING → PAID with the right amount'), tip: T('UPDATE … WHERE Status = PENDING_PAYMENT AND Total = importe. Si dos compiten, gana una sola.', 'UPDATE … WHERE Status = PENDING_PAYMENT AND Total = amount. If two compete, only one wins.') },
+  { k: 'write', t: T('4 · Ganancia + outbox', '4 · Earning + outbox'), d: T('En la misma transacción', 'In the same transaction'), tip: T('Ganancia única por pedido (índice único) y aviso guardado junto con el pago.', 'One earning per order (unique index) and the notice saved with the payment.') },
+  { k: 'send', t: T('5 · Aviso al restaurante', '5 · Restaurant notice'), d: T('Con reintentos', 'With retries'), tip: T('El outbox lo envía cada 2 s; si falla, reintenta con espera exponencial.', 'The outbox sends it every 2 s; on failure it retries with exponential backoff.') },
 ];
 let lastSolution = null; // { scenario, orderId, responses }
 
@@ -499,26 +553,27 @@ function renderFlow(st) {
   }
   const total = lastSolution?.responses.length ?? 0;
   let reached = total;
-  $('#flow').innerHTML = STEPS.map((s, i) => {
+  $('#flow').innerHTML = STEPS().map((s, i) => {
     let cls = 'idle', line = '';
     if (lastSolution) {
       if (i < 4) {
         const stopped = i === 3 ? 0 : counts[i];
         const passed = reached - stopped;
         cls = reached === 0 ? 'idle' : stopped ? (i === 0 ? 'blocked' : 'stopped') : 'passed';
-        line = reached === 0 ? '' : stopped ? `✋ ${stopped} frenado(s) aquí${passed ? ` · ✔ ${passed} siguió` : ''}` : `✔ ${reached} pasó`;
+        line = reached === 0 ? '' : stopped ? `✋ ${stopped} ${T('frenado(s) aquí', 'stopped here')}${passed ? ` · ✔ ${passed} ${T('siguió', 'went on')}` : ''}` : `✔ ${reached} ${T('pasó', 'passed')}`;
         reached = i === 3 ? counts[3] : passed;
       } else if (counts[3]) {
         cls = delivered ? 'passed' : pending ? 'stopped' : 'idle';
-        line = delivered ? `✔ entregado (${delivered})` : pending ? '⏳ reintentando…' : '';
+        line = delivered ? `✔ ${T('entregado', 'delivered')} (${delivered})` : pending ? T('⏳ reintentando…', '⏳ retrying…') : '';
       }
     }
     return `<div class="step ${cls}"><b>${s.t} <span class="tip" data-tip="${esc(s.tip)}">?</span></b><small>${s.d}</small>${line ? `<div class="count">${line}</div>` : ''}</div>`;
   }).join('');
   if (lastSolution) {
-    const where = ['la firma', 'la idempotencia', 'la transición atómica'];
-    const parts = [0, 1, 2].filter((i) => counts[i]).map((i) => `${counts[i]} en ${where[i]}`);
-    $('#flowNote').innerHTML = `<b>${esc(lastSolution.scenario)}</b>: ${total} aviso(s) → ${counts[3]} aplicado(s)${parts.length ? `, frenados: ${parts.join(', ')}` : ''}.`;
+    const where = [T('la firma', 'the signature'), T('la idempotencia', 'idempotency'), T('la transición atómica', 'the atomic transition')];
+    const parts = [0, 1, 2].filter((i) => counts[i]).map((i) => `${counts[i]} ${T('en', 'at')} ${where[i]}`);
+    const sc = SCENARIOS.find((x) => x.id === lastSolution.id);
+    $('#flowNote').innerHTML = `<b>${esc(sv(sc, 'title'))}</b>: ${total} ${T('aviso(s)', 'notification(s)')} → ${counts[3]} ${T('aplicado(s)', 'applied')}${parts.length ? `, ${T('frenados', 'stopped')}: ${parts.join(', ')}` : ''}.`;
   }
 }
 
@@ -530,13 +585,13 @@ async function refresh() {
     renderFlow(st);
     $('#restDown').checked = st.restaurantDown;
     $('#restSwitch').classList.toggle('down', st.restaurantDown);
-    $('#restLabel').textContent = st.restaurantDown ? 'Restaurante caído' : 'Restaurante en línea';
+    $('#restLabel').textContent = st.restaurantDown ? T('Restaurante caído', 'Restaurant down') : T('Restaurante en línea', 'Restaurant online');
   } catch (e) { /* servidor reiniciando */ }
 }
 
 async function setRestaurant(down) {
   await api('/demo/restaurant', { down });
-  toast(down ? 'Restaurante <b>caído</b>: los avisos fallarán.' : 'Restaurante <b>en línea</b>: el outbox entregará lo pendiente.');
+  toast(down ? T('Restaurante <b>caído</b>: los avisos fallarán.', 'Restaurant <b>down</b>: notices will fail.') : T('Restaurante <b>en línea</b>: el outbox entregará lo pendiente.', 'Restaurant <b>online</b>: the outbox will deliver what is pending.'));
   await refresh();
 }
 
@@ -547,7 +602,7 @@ document.addEventListener('click', (e) => {
   const w = e.target.closest('[data-why]');
   if (w) {
     const s = SCENARIOS.find((x) => x.id === w.dataset.why);
-    $('#whyBody').innerHTML = `<h3>${s.title}</h3>${s.why}<div class="say"><b>Para la defensa:</b> ${s.say}</div>`;
+    $('#whyBody').innerHTML = `<h3>${sv(s, 'title')}</h3>${sv(s, 'why')}<div class="say"><b>${T('En una frase:', 'In one sentence:')}</b> ${sv(s, 'say')}</div>`;
     $('#why').showModal();
   }
 });
@@ -561,7 +616,7 @@ $('#runAll').addEventListener('click', async (e) => {
       if (s.id === 'down') { await sleep(4000); await setRestaurant(false); }
       await sleep(400);
     }
-    toast('Listo: revisa el marcador arriba.');
+    toast(T('Listo: revisa el marcador arriba.', 'Done: check the score at the top.'));
   } finally { e.target.disabled = false; }
 });
 $('#restDown').addEventListener('change', (e) => setRestaurant(e.target.checked));
@@ -569,12 +624,21 @@ $('#reset').addEventListener('click', async () => {
   await api('/demo/reset', {});
   for (const k of Object.keys(runs)) delete runs[k];
   lastSolution = null;
-  $('#flowNote').innerHTML = 'Ejecuta un escenario con la <b>solución</b> para ver en qué capa se frena cada aviso.';
+  $('#flowNote').innerHTML = T(...I18N.flowNote);
   seen = new Set();
-  toast('Datos limpios.');
+  toast(T('Datos limpios.', 'Data reset.'));
   await refresh();
 });
 
+$('#lang').addEventListener('click', () => {
+  LANG = LANG === 'en' ? 'es' : 'en';
+  try { localStorage.setItem('lang', LANG); } catch {}
+  applyStatic();
+  renderScenarios();
+  refresh();
+});
+
+applyStatic();
 renderScenarios();
 refresh();
 setInterval(refresh, 1000);
